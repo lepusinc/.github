@@ -59,7 +59,9 @@ jobs:
           repository: lepusinc/.github
           ref: main
           path: _workflow_templates
-          sparse-checkout: .github/workflow-templates
+          sparse-checkout: |
+            .github/PULL_REQUEST_TEMPLATE
+            .github/workflow-templates
           sparse-checkout-cone-mode: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -93,6 +95,7 @@ jobs:
           SOURCE_BRANCH: ${{ inputs.source_branch }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
           REPOSITORY: ${{ inputs.repository || github.repository }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
@@ -103,8 +106,8 @@ jobs:
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
           PR_TITLE="${PR_TITLE:0:256}"
 
-          PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE}' \
-            < _workflow_templates/.github/workflow-templates/sync-pr-body.md)
+          PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE} ${WORKFLOW_RUN_URL}' \
+            < _workflow_templates/.github/PULL_REQUEST_TEMPLATE/sync.md)
 
           PR_URL=$(gh pr create \
             --repo "${REPOSITORY}" \
@@ -148,7 +151,7 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${PR_URL}' \
-            < _workflow_templates/.github/workflow-templates/sync-pr-summary-success.md \
+            < _workflow_templates/.github/workflow-templates/pr-created.md \
             >> $GITHUB_STEP_SUMMARY
 
       - name: Output failure summary
@@ -158,5 +161,5 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH}' \
-            < _workflow_templates/.github/workflow-templates/sync-pr-summary-failure.md \
+            < _workflow_templates/.github/workflow-templates/pr-creation-failed.md \
             >> $GITHUB_STEP_SUMMARY
