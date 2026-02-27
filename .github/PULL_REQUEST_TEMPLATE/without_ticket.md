@@ -21,6 +21,8 @@
 <!-- チェックの on / off は適切に行う。 -->
 <!-- Adding options is allowed; append "（追加）" to added option text so additions are identifiable. -->
 <!-- 選択肢の追加は許可するが、追加したことが分かるよう選択肢のテキストに「（追加）」サフィックスを付与する。 -->
+<!-- If a ticket number/key exists, include it in the PR title (e.g., PROJ-123 ...). -->
+<!-- チケット番号/キーがある場合、PRタイトルにチケット番号/キーを含める。（例: PROJ-123 ...） -->
 
 # Pull Request (Without Ticket)
 
@@ -40,9 +42,7 @@ Description / 説明文
 >
 > 主な変更点を箇条書きで
 
--
-
----
+- ***
 
 ## 🖥️ Verification / 動作確認
 
@@ -51,21 +51,21 @@ Description / 説明文
 > 開発環境で開発者が行った動作確認。
 
 - [ ] Include screenshots or videos in the "Implementation Results" section  
-  「🧾 Implementation Results / 実装結果」セクションにスクリーンショット or 動画を記載
+      「🧾 Implementation Results / 実装結果」セクションにスクリーンショット or 動画を記載
 - [ ] Unit test added → Execution results (screenshot/CI link)  
-  単体テスト追加 → 実行結果 (スクショ/CIリンク)
+      単体テスト追加 → 実行結果 (スクショ/CIリンク)
 - [ ] Integration/E2E test added → Execution results (screenshot/CI link)  
-  統合/E2Eテスト追加 → 実行結果 (スクショ/CIリンク)
+      統合/E2Eテスト追加 → 実行結果 (スクショ/CIリンク)
 - [ ] Log file snippets  
-  ログファイルの抜粋
+      ログファイルの抜粋
 - [ ] API request & response samples  
-  APIリクエスト&レスポンスのサンプル
+      APIリクエスト&レスポンスのサンプル
 - [ ] Database records (before & after)  
-  DBレコード(変更前後)
+      DBレコード(変更前後)
 - [ ] Performance metrics  
-  パフォーマンスメトリクス
+      パフォーマンスメトリクス
 - [ ] REPL/Debugger output  
-  REPL/デバッガーの実行結果
+      REPL/デバッガーの実行結果
 
 ---
 
@@ -93,6 +93,7 @@ Description / 説明文
 ---
 
 <!-- Keep this list in sync with "2. システム影響範囲" in docs/ja/ISSUE.md -->
+
 ## 📌 System Impact / システム影響範囲
 
 > Select all applicable items. If needed, add brief context.
