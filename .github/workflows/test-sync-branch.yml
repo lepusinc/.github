@@ -1,0 +1,31 @@
+# このワークフローは .github リポジトリ内でのみ動作確認するためのテスト用ワークフローです。
+name: "[Test] sync-branch reusable workflow"
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: '対象リポジトリ (owner/repo)'
+        type: string
+        required: true
+        default: 'lepusinc/.github'
+      source_branch:
+        description: 'マージ元ブランチ名'
+        type: string
+        required: true
+        default: 'main'
+      target_branch:
+        description: 'マージ先ブランチ名'
+        type: string
+        required: true
+
+jobs:
+  test:
+    uses: lepusinc/.github/.github/workflows/sync-branch.yml@main
+    with:
+      source_branch: ${{ inputs.source_branch }}
+      target_branch: ${{ inputs.target_branch }}
+      repository: ${{ inputs.repository }}
+    permissions:
+      contents: write
+      pull-requests: write
