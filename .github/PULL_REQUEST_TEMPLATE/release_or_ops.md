@@ -21,6 +21,8 @@
 <!-- チェックの on / off は適切に行う。 -->
 <!-- Adding options is allowed; append "（追加）" to added option text so additions are identifiable. -->
 <!-- 選択肢の追加は許可するが、追加したことが分かるよう選択肢のテキストに「（追加）」サフィックスを付与する。 -->
+<!-- If a ticket number/key exists, include it in the PR title (e.g., PROJ-123 ...). -->
+<!-- チケット番号/キーがある場合、PRタイトルにチケット番号/キーを含める。（例: PROJ-123 ...） -->
 
 # Pull Request (Release / Ops)
 
@@ -34,9 +36,7 @@
 >
 > この運用変更が必要な理由を記載。
 
--
-
----
+- ***
 
 ## 🔄 Changes / 変更内容
 
@@ -44,9 +44,7 @@
 >
 > 主な変更点と影響するファイル/ワークフローを記載。
 
--
-
----
+- ***
 
 ## 📋 Nature of this PR / このPRの性質
 
