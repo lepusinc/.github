@@ -134,13 +134,27 @@ jobs:
           exit 1
 
       - name: Add labels to PR
+        id: add_labels
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ steps.create_pr.outputs.pull-request-url }}
         run: |
-          gh pr edit "${PR_URL}" --add-label "sync,automated" 2>&1 || \
+          LABELS="sync,automated"
+          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && LABEL_STATUS=0 || LABEL_STATUS=$?
+
+          echo "labels=${LABELS}" >> $GITHUB_OUTPUT
+          if [ "${LABEL_STATUS}" -eq 0 ]; then
+            echo "label-status=success" >> $GITHUB_OUTPUT
+          else
             echo "::warning::Failed to add labels to PR: ${PR_URL}"
+            echo "label-status=failure" >> $GITHUB_OUTPUT
+            {
+              echo 'label-error<<LABEL_ERROR_EOF'
+              echo "${LABEL_OUTPUT}"
+              echo 'LABEL_ERROR_EOF'
+            } >> $GITHUB_OUTPUT
+          fi
 
       - name: Output summary
         if: success()
