@@ -22,15 +22,17 @@ on:
         description: 'マージ元ブランチ名'
         type: string
         required: true
+        default: 'main'
       target_branch:
         description: 'マージ先ブランチ名'
         type: string
         required: true
+        default: 'test-sync-target'
       repository:
         description: '対象リポジトリ (owner/repo)'
         type: string
         required: false
-        default: ''
+        default: 'lepusinc/.github'
 
 permissions:
   contents: write
