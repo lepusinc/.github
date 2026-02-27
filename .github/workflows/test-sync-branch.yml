@@ -1,5 +1,5 @@
 # このワークフローは .github リポジトリ内でのみ動作確認するためのテスト用ワークフローです。
-name: "[Test] sync-branch reusable workflow"
+name: "[Test] create-sync-branch-pr reusable workflow"
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ on:
 
 jobs:
   test:
-    uses: lepusinc/.github/.github/workflows/sync-branch.yml@main
+    uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
     with:
       source_branch: ${{ inputs.source_branch }}
       target_branch: ${{ inputs.target_branch }}
