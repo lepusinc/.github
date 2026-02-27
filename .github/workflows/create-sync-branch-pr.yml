@@ -16,6 +16,21 @@ on:
         type: string
         required: false
         default: ''
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'マージ元ブランチ名'
+        type: string
+        required: true
+      target_branch:
+        description: 'マージ先ブランチ名'
+        type: string
+        required: true
+      repository:
+        description: '対象リポジトリ (owner/repo)'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: write
