@@ -95,7 +95,6 @@ jobs:
           SOURCE_BRANCH: ${{ inputs.source_branch }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
           REPOSITORY: ${{ inputs.repository || github.repository }}
-          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
@@ -106,7 +105,7 @@ jobs:
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
           PR_TITLE="${PR_TITLE:0:256}"
 
-          PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE} ${WORKFLOW_RUN_URL}' \
+          PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE}' \
             < _workflow_templates/.github/PULL_REQUEST_TEMPLATE/sync.md)
 
           PR_URL=$(gh pr create \
