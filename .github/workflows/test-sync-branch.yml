@@ -7,7 +7,7 @@ on:
       repository:
         description: '対象リポジトリ (owner/repo)'
         type: string
-        required: true
+        required: false
         default: 'lepusinc/.github'
       source_branch:
         description: 'マージ元ブランチ名'

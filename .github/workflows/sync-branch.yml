@@ -14,7 +14,8 @@ on:
       repository:
         description: '対象リポジトリ (owner/repo)'
         type: string
-        required: true
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -35,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ inputs.repository }}
+          repository: ${{ inputs.repository || github.repository }}
 
       - name: Configure Git
         run: |
@@ -66,7 +67,7 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           SOURCE_BRANCH: ${{ inputs.source_branch }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
-          REPOSITORY: ${{ inputs.repository }}
+          REPOSITORY: ${{ inputs.repository || github.repository }}
         run: |
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
