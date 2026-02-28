@@ -21,7 +21,7 @@ on:
 
 jobs:
   test:
-    uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
+    uses: ./.github/workflows/create-sync-branch-pr.yml
     with:
       source_branch: ${{ inputs.source_branch }}
       target_branch: ${{ inputs.target_branch }}
