@@ -1,7 +1,9 @@
+#
+
 ## ❌ PR Creation Failed
 
-| | |
-|---|---|
+| Key        | Value              |
+| ---------- | ------------------ |
 | **Source** | `${SOURCE_BRANCH}` |
 | **Target** | `${TARGET_BRANCH}` |
 

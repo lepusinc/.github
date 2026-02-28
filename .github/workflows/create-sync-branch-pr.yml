@@ -39,10 +39,8 @@ jobs:
           TEMPLATE_REF="${WORKFLOW_REF##*@}"
 
           echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "```" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "```" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
 
       - name: Cache templates
         id: cache_templates
@@ -55,14 +53,16 @@ jobs:
         id: cache_result
         env:
           CACHE_HIT: ${{ steps.cache_templates.outputs.cache-hit }}
-          CACHE_PATH: ${{ env.WORKFLOW_TEMPLATES_PATH }}
         run: |
           echo "### Cache" | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ]; then
-            echo "- Cache used" | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- Cache missed" | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "- Cache $([ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ] && echo 'used' || echo 'missed')" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
+          ### Cache
+          | Key | Value |
+          | --- | --- |
+          | `cache-hit` | $([ "$CACHE_HIT" = "true" ] && echo 'used' || echo 'missed') |
+          EOF
 
       - name: Checkout templates
         if: steps.cache_templates.outputs.cache-hit != 'true'
@@ -94,7 +94,7 @@ jobs:
           echo "- SHA256 digest: ${{ steps.upload_artifact.outputs.artifact-digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           echo "## Output" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
 
   create-pr:
     name: Create pull request
@@ -118,15 +118,14 @@ jobs:
       - name: Create sync branch
         id: create_sync_branch
         env:
-          COMMIT_SHA: ${{ github.sha }}
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
-          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}-${{ github.sha }}"
+          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
         run: |
           git fetch origin "${SOURCE_BRANCH}"
 
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
-          git fetch origin "${BRANCH}"
+            git fetch origin "${BRANCH}"
           fi
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
           git push --force-with-lease origin "${BRANCH}"
