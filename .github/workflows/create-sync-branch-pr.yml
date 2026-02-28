@@ -88,8 +88,21 @@ jobs:
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
           git push --force-with-lease origin "${BRANCH}"
 
+      - name: Check Existing PR
+        id: check_existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ inputs.repository || github.repository }}
+        run: |
+          EXISTING_PR=$(gh pr view "${BRANCH}" --repo "${REPOSITORY}" --json url --jq '.url' 2>/dev/null || true)
+          if [ -n "${EXISTING_PR}" ]; then
+            echo "::notice::PR already exists for ${BRANCH}: ${EXISTING_PR}"
+            echo "pull-request-url=${EXISTING_PR}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Pull Request
         id: create_pr
+        if: steps.check_existing_pr.outputs.pull-request-url == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
@@ -110,13 +123,6 @@ jobs:
           PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE}' \
             < _workflow_templates/.github/PULL_REQUEST_TEMPLATE/sync.md)
 
-          EXISTING_PR=$(gh pr view "${BRANCH}" --repo "${REPOSITORY}" --json url --jq '.url' 2>/dev/null || true)
-          if [ -n "${EXISTING_PR}" ]; then
-            echo "::notice::PR already exists for ${BRANCH}: ${EXISTING_PR}"
-            echo "pull-request-url=${EXISTING_PR}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           PR_URL=$(gh pr create \
             --repo "${REPOSITORY}" \
             --base "${TARGET_BRANCH}" \
@@ -130,7 +136,7 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ steps.create_pr.outputs.pull-request-url }}
+          PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
           LABELS="sync,automated"
           LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && LABEL_STATUS=0 || LABEL_STATUS=$?
@@ -151,7 +157,7 @@ jobs:
       - name: Output summary
         if: success()
         env:
-          PR_URL: ${{ steps.create_pr.outputs.pull-request-url }}
+          PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
           SOURCE_BRANCH: ${{ inputs.source_branch }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
