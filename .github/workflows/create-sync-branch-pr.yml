@@ -37,8 +37,12 @@ jobs:
         run: |
           TEMPLATE_REPOSITORY="${WORKFLOW_REF%%/.github/workflows/*}"
           TEMPLATE_REF="${WORKFLOW_REF##*@}"
-          echo "repository=${TEMPLATE_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "ref=${TEMPLATE_REF}" >> "$GITHUB_OUTPUT"
+
+          echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "```" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "```" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Cache templates
         id: cache_templates
@@ -46,6 +50,19 @@ jobs:
         with:
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           key: workflow-templates-${{ github.workflow_sha }}
+
+      - name: Cache Result
+        id: cache_result
+        env:
+          CACHE_HIT: ${{ steps.cache_templates.outputs.cache-hit }}
+          CACHE_PATH: ${{ env.WORKFLOW_TEMPLATES_PATH }}
+        run: |
+          echo "### Cache" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ]; then
+            echo "- Cache used" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Cache missed" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Checkout templates
         if: steps.cache_templates.outputs.cache-hit != 'true'
@@ -61,12 +78,23 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Upload Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           include-hidden-files: true
           retention-days: 1
+
+      - name: Upload Artifact Result
+        run: |
+          echo "### Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact ID: ${{ steps.upload_artifact.outputs.artifact-id }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- Download URL: ${{ steps.upload_artifact.outputs.artifact-url }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- SHA256 digest: ${{ steps.upload_artifact.outputs.artifact-digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          echo "## Output" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
 
   create-pr:
     name: Create pull request
@@ -88,14 +116,14 @@ jobs:
           path: _workflow_templates
 
       - name: Create sync branch
+        id: create_sync_branch
         env:
           COMMIT_SHA: ${{ github.sha }}
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}-${{ github.sha }}"
         run: |
           git fetch origin "${SOURCE_BRANCH}"
-          BRANCH="sync/${SOURCE_BRANCH}-to-${TARGET_BRANCH}-${COMMIT_SHA}"
-          echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
 
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
           git fetch origin "${BRANCH}"
@@ -103,9 +131,12 @@ jobs:
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
           git push --force-with-lease origin "${BRANCH}"
 
+          echo "branch=${BRANCH}" | tee -a "$GITHUB_OUTPUT"
+
       - name: Check Existing PR
         id: check_existing_pr
         env:
+          BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           EXISTING_PR=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>/dev/null || true)
@@ -123,6 +154,7 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
