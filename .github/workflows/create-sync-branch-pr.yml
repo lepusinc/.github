@@ -93,7 +93,7 @@ jobs:
           echo "- Download URL: ${{ steps.upload_artifact.outputs.artifact-url }}" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "- SHA256 digest: ${{ steps.upload_artifact.outputs.artifact-digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
-          echo "## Output" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "## Output" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
 
   create-pr:
