@@ -110,30 +110,20 @@ jobs:
           PR_BODY=$(envsubst '${SOURCE_BRANCH} ${TARGET_BRANCH} ${COMMIT_SHA} ${COMMIT_MESSAGE}' \
             < _workflow_templates/.github/PULL_REQUEST_TEMPLATE/sync.md)
 
+          EXISTING_PR=$(gh pr view "${BRANCH}" --repo "${REPOSITORY}" --json url --jq '.url' 2>/dev/null || true)
+          if [ -n "${EXISTING_PR}" ]; then
+            echo "::notice::PR already exists for ${BRANCH}: ${EXISTING_PR}"
+            echo "pull-request-url=${EXISTING_PR}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           PR_URL=$(gh pr create \
             --repo "${REPOSITORY}" \
             --base "${TARGET_BRANCH}" \
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
-            --body "${PR_BODY}" \
-            2>/tmp/pr_create_err.txt)
-          CREATE_STATUS=$?
-
-          if [ "${CREATE_STATUS}" -eq 0 ]; then
-            echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          PR_CREATE_ERR=$(cat /tmp/pr_create_err.txt)
-          if echo "${PR_CREATE_ERR}" | grep -q "already exists"; then
-            echo "::notice::PR already exists for ${BRANCH}."
-            PR_URL=$(gh pr view "${BRANCH}" --repo "${REPOSITORY}" --json url --jq '.url')
-            echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "::error::gh pr create failed (exit ${CREATE_STATUS}): ${PR_CREATE_ERR}"
-          exit 1
+            --body "${PR_BODY}")
+          echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
 
       - name: Add labels to PR
         id: add_labels
