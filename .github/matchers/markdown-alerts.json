@@ -8,7 +8,7 @@
           "regexp": "^> \\[!NOTE\\]$"
         },
         {
-          "regexp": "^> (.+)$",
+          "regexp": "^> (.*)$",
           "message": 1,
           "loop": true
         }
@@ -22,7 +22,7 @@
           "regexp": "^> \\[!WARNING\\]$"
         },
         {
-          "regexp": "^> (.+)$",
+          "regexp": "^> (.*)$",
           "message": 1,
           "loop": true
         }
@@ -36,7 +36,7 @@
           "regexp": "^> \\[!CAUTION\\]$|^> \\[!CRITICAL\\]$"
         },
         {
-          "regexp": "^> (.+)$",
+          "regexp": "^> (.*)$",
           "message": 1,
           "loop": true
         }

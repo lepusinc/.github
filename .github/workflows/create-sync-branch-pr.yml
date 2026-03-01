@@ -307,4 +307,10 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
-          envsubst < "${TEMPLATES_PATH}/workflow-templates/pr-creation-failed.md" >> $GITHUB_STEP_SUMMARY
+          TEMPLATE_FILE="${TEMPLATES_PATH}/workflow-templates/pr-creation-failed.md"
+          if [[ -n "$TEMPLATES_PATH" && -f "$TEMPLATE_FILE" ]]; then
+            envsubst < "$TEMPLATE_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ PR Creation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Failed to create PR from ${SOURCE_BRANCH} to ${TARGET_BRANCH}" >> $GITHUB_STEP_SUMMARY
+          fi
