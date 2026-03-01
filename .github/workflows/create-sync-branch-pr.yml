@@ -118,9 +118,6 @@ jobs:
           name: ${{ needs.workflow-template-artifact.outputs.name }}
           path: _workflow_templates
 
-      - name: Register markdown alert problem matcher
-        run: echo "::add-matcher::_workflow_templates/.github/matchers/markdown-alerts.json"
-
       - name: Download Artifact Result
         if: success()
         run: |
@@ -130,6 +127,11 @@ jobs:
           | --- | ----- |
           | download-path | ${{ steps.download_templates.outputs.download-path }} |
           EOF
+
+      - name: Register markdown alert problem matcher
+        env:
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
+        run: echo "::add-matcher::$TEMPLATES_PATH/.github/matchers/markdown-alerts.json"
 
       - name: Create sync branch
         id: create_sync_branch
