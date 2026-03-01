@@ -1,0 +1,13 @@
+## 🔄 Sync `${SOURCE_BRANCH}` → `${TARGET_BRANCH}`
+
+This PR was automatically created to sync changes from `${SOURCE_BRANCH}` to `${TARGET_BRANCH}`.
+
+**Source Commit:** `${COMMIT_SHA}`
+**Commit Message:** ${COMMIT_MESSAGE}
+
+### Action Required
+
+1. Review the changed files
+2. Resolve conflicts if any
+3. Ensure CI passes
+4. Merge this PR

@@ -1,168 +1,316 @@
-name: Create PR to sync source branch to target branch
+name: Create pull request to sync
+run-name: Create pull request to sync. (${{ github.ref_name }} -> ${{ inputs.target_branch }})
 
 on:
   workflow_call:
     inputs:
-      source_branch:
-        description: 'マージ元ブランチ名'
-        type: string
-        required: true
       target_branch:
-        description: 'マージ先ブランチ名'
+        description: "マージ先ブランチ名"
         type: string
         required: true
-      repository:
-        description: '対象リポジトリ (owner/repo)'
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "マージ先ブランチ名"
         type: string
-        required: false
-        default: ''
+        required: true
+        default: "test-sync-target"
 
 permissions:
   contents: write
   pull-requests: write
 
-env:
-  GIT_USER_NAME: "github-actions[bot]"
-  GIT_USER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
-
 jobs:
-  create-pr:
-    name: Create PR (${{ inputs.source_branch }} → ${{ inputs.target_branch }})
+  workflow-template-artifact:
+    name: Upload workflow template artifact
     runs-on: ubuntu-latest
+    env:
+      WORKFLOW_TEMPLATES_PATH: _workflow_templates
+      ARTIFACT_NAME: workflow-templates
+    outputs:
+      name: ${{ env.ARTIFACT_NAME }}
+    steps:
+      - name: Extract template source
+        id: extract_template_source
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
 
+          TEMPLATE_REPOSITORY="${WORKFLOW_REF%%/.github/workflows/*}"
+          TEMPLATE_REF="${WORKFLOW_REF##*@}"
+          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+      - name: Cache templates
+        id: cache_templates
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
+          key: workflow-templates-${{ github.workflow_sha }}
+
+      - name: Cache Result
+        id: cache_result
+        env:
+          CACHE_HIT: ${{ steps.cache_templates.outputs.cache-hit }}
+        run: |
+          echo "### Cache" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ]; then
+            MESSAGE="Cache was used."
+          else
+            MESSAGE="Cache was not used."
+          fi
+          echo "$MESSAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout templates
+        if: steps.cache_templates.outputs.cache-hit != 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.extract_template_source.outputs.repository }}
+          ref: ${{ steps.extract_template_source.outputs.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
+          sparse-checkout: |
+            .github/PULL_REQUEST_TEMPLATE
+            .github/workflow-templates
+            .github/matchers
+          sparse-checkout-cone-mode: false
+
+      - name: Upload Artifact
+        id: upload_artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: "${{ env.WORKFLOW_TEMPLATES_PATH }}/.github"
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Upload Artifact Result
+        if: success()
+        run: |
+          echo "### Upload Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
+          | Key | Value |
+          | --- | ----- |
+          | artifact-id | ${{ steps.upload_artifact.outputs.artifact-id }} |
+          | artifact-url | ${{ steps.upload_artifact.outputs.artifact-url }} |
+          | artifact-digest | ${{ steps.upload_artifact.outputs.artifact-digest }} |
+          EOF
+
+          echo "## Output" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+  create-pr:
+    name: Create pull request
+    runs-on: ubuntu-latest
+    needs: workflow-template-artifact
+    if: success()
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          repository: ${{ github.repository }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ inputs.repository || github.repository }}
+          fetch-depth: 0
 
-      - name: Configure Git
+      - name: Download workflow templates
+        id: download_templates
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ needs.workflow-template-artifact.outputs.name }}
+          path: _workflow_templates
+
+      - name: Download Artifact Result
+        if: success()
+        env:
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
-          git config user.name "${{ env.GIT_USER_NAME }}"
-          git config user.email "${{ env.GIT_USER_EMAIL }}"
+          echo "### Download Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
+          | Key | Value |
+          | --- | ----- |
+          | download-path | "${TEMPLATES_PATH}" |
+          EOF
+          tree -a -L 3 "${TEMPLATES_PATH}"
+
+      - name: Register problem matcher
+        env:
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MATCHER_PATH="${TEMPLATES_PATH}/matchers/markdown-alerts.json"
+
+          if [[ ! -f "$MATCHER_PATH" ]]; then
+            echo "::warning::Matcher not found (skipping): $MATCHER_PATH" >&2
+            exit 0
+          fi
+
+          echo "::add-matcher::${MATCHER_PATH}"
 
       - name: Create sync branch
+        id: create_sync_branch
         env:
-          COMMIT_SHA: ${{ github.sha }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
+          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
         run: |
-          git fetch origin "${SOURCE_BRANCH}"
-          BRANCH="sync/${SOURCE_BRANCH}-to-${TARGET_BRANCH}-${COMMIT_SHA}"
-          echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
+          echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
 
+          git fetch origin "${SOURCE_BRANCH}"
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
+            echo "Sync branch exists." | tee -a "$GITHUB_STEP_SUMMARY"
             git fetch origin "${BRANCH}"
+          else
+            echo "Sync branch does not exist." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
-          git push --force-with-lease origin "${BRANCH}"
+          if ! git push --force-with-lease origin "${BRANCH}"; then
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!CAUTION]
+          > Failed to push sync branch: ${BRANCH}
+          ALERT
+            exit 1
+          fi
+
+          echo "branch=${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+      - name: Check Existing PR
+        id: check_existing_pr
+        if: success()
+        env:
+          BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          set -x
+          EXISTING_PR_OUTPUT=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
+          set +x
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!NOTE]
+          > PR already exists.
+          ALERT
+            echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          else
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!WARNING]
+          > PR not found. (exit code $EXIT_CODE)
+          ALERT
+            echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          fi
 
       - name: Create Pull Request
         id: create_pr
+        if: steps.check_existing_pr.outputs.pull-request-url == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
-          REPOSITORY: ${{ inputs.repository || github.repository }}
+          BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
+          echo "### Create Pull Request" | tee -a "$GITHUB_STEP_SUMMARY"
+
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
             | head -n 1 \
             | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
           [ -z "${COMMIT_TITLE}" ] && COMMIT_TITLE="(no commit title)"
+          echo "Commit title: ${COMMIT_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
           PR_TITLE="${PR_TITLE:0:256}"
+          echo "PR title: ${PR_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
-          PR_BODY=$(cat <<EOF
-          ## 🔄 Sync \`${SOURCE_BRANCH}\` → \`${TARGET_BRANCH}\`
+          if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!CAUTION]
+          > Failed to load PR body template
+          ALERT
+            exit 1
+          fi
 
-          This PR was automatically created to sync changes from \`${SOURCE_BRANCH}\` to \`${TARGET_BRANCH}\`.
-
-          **Source Commit:** \`${COMMIT_SHA}\`
-          **Commit Message:** ${COMMIT_MESSAGE}
-
-          ### Action Required
-
-          1. Review the changed files
-          2. Resolve conflicts if any
-          3. Ensure CI passes
-          4. Merge this PR
-
-          ---
-
-          🤖 Generated by [create-sync-branch-pr workflow](https://github.com/lepusinc/.github/blob/main/.github/workflows/create-sync-branch-pr.yml)
-          EOF
-          )
-
+          set -x
           PR_URL=$(gh pr create \
-            --repo "${REPOSITORY}" \
+            --repo "${{ github.repository }}" \
             --base "${TARGET_BRANCH}" \
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
-            --body "${PR_BODY}" \
-            2>/tmp/pr_create_err.txt)
-          CREATE_STATUS=$?
+            --body "${PR_BODY}") && EXIT_CODE=0 || EXIT_CODE=$?
+          set +x
 
-          if [ "${CREATE_STATUS}" -eq 0 ]; then
-            echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
-            exit 0
+          if [ ${EXIT_CODE} -ne 0 ]; then
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!CAUTION]
+          > Failed to create pull request
+          ALERT
+            exit 1
           fi
 
-          PR_CREATE_ERR=$(cat /tmp/pr_create_err.txt)
-          if echo "${PR_CREATE_ERR}" | grep -q "already exists"; then
-            echo "::notice::PR already exists for ${BRANCH}."
-            PR_URL=$(gh pr view "${BRANCH}" --repo "${REPOSITORY}" --json url --jq '.url')
-            echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "::error::gh pr create failed (exit ${CREATE_STATUS}): ${PR_CREATE_ERR}"
-          exit 1
+          echo "pull-request-url=${PR_URL}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
+        id: add_labels
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ steps.create_pr.outputs.pull-request-url }}
+          PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
-          gh pr edit "${PR_URL}" --add-label "sync,automated" 2>&1 || \
-            echo "::warning::Failed to add labels to PR: ${PR_URL}"
+          echo "### Add Labels to PR" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          LABELS="sync,automated"
+          echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+          set -x
+          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
+          set +x
+
+          if [ "${EXIT_CODE}" -eq 0 ]; then
+            echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          else
+            echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!WARNING]
+          > Failed to add labels (exit code ${EXIT_CODE})
+          ALERT
+
+            {
+              echo 'label-error<<LABEL_ERROR_EOF'
+              echo "${LABEL_OUTPUT}"
+              echo 'LABEL_ERROR_EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Output summary
         if: success()
         env:
-          PR_URL: ${{ steps.create_pr.outputs.pull-request-url }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
+          PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## ✅ PR Created
-
-          | | |
-          |---|---|
-          | **Source** | \`${SOURCE_BRANCH}\` |
-          | **Target** | \`${TARGET_BRANCH}\` |
-          | **PR** | ${PR_URL} |
-          EOF
+          envsubst < "${TEMPLATES_PATH}/workflow-templates/pr-created.md" >> $GITHUB_STEP_SUMMARY
 
       - name: Output failure summary
         if: failure()
         env:
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## ❌ PR Creation Failed
-
-          | | |
-          |---|---|
-          | **Source** | \`${SOURCE_BRANCH}\` |
-          | **Target** | \`${TARGET_BRANCH}\` |
-
-          Please check the workflow logs for details.
-          EOF
+          TEMPLATE_FILE="${TEMPLATES_PATH}/workflow-templates/pr-creation-failed.md"
+          if [[ -n "$TEMPLATES_PATH" && -f "$TEMPLATE_FILE" ]]; then
+            envsubst < "$TEMPLATE_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ PR Creation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Failed to create PR from ${SOURCE_BRANCH} to ${TARGET_BRANCH}" >> $GITHUB_STEP_SUMMARY
+          fi
