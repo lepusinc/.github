@@ -169,10 +169,10 @@ jobs:
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
 
           if ! git push --force-with-lease origin "${BRANCH}"; then
-            cat <<'ALERT'
-          > [!CAUTION]
-          > Failed to push sync branch: ${BRANCH}
-          ALERT
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!CAUTION]
+            > Failed to push sync branch: ${BRANCH}
+            ALERT
             exit 1
           fi
 
@@ -199,16 +199,16 @@ jobs:
           echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ $EXIT_CODE -eq 0 ]; then
             EXISTING_PR="$EXISTING_PR_OUTPUT"
-            cat <<ALERT
-          > [!NOTE]
-          > PR already exists for ${BRANCH}: $EXISTING_PR
-          ALERT
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!NOTE]
+            > PR already exists for ${BRANCH}: $EXISTING_PR
+            ALERT
             echo "pull-request-url=$EXISTING_PR" >> $GITHUB_OUTPUT
           else
-            cat <<ALERT
-          > [!WARNING]
-          > No existing PR found (exit code $EXIT_CODE)
-          ALERT
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!WARNING]
+            > No existing PR found (exit code $EXIT_CODE)
+            ALERT
           fi
 
       - name: Create Pull Request
@@ -237,10 +237,10 @@ jobs:
 
           echo "Loading PR body template"
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
-            cat <<'ALERT'
-          > [!CAUTION]
-          > Failed to load PR body template
-          ALERT
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!CAUTION]
+            > Failed to load PR body template
+            ALERT
             exit 1
           fi
 
@@ -251,10 +251,11 @@ jobs:
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
             --body "${PR_BODY}"); then
-            cat <<'ALERT'
-          > [!CAUTION]
-          > Failed to create pull request
-          ALERT
+            
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!CAUTION]
+            > Failed to create pull request
+            ALERT
             exit 1
           fi
 
@@ -279,16 +280,17 @@ jobs:
           echo "gh pr edit output: ${LABEL_OUTPUT}"
 
           echo "### Add Labels to PR" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "labels=${LABELS}" | tee -a "$GITHUB_OUTPUT"
+          echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
           if [ "${LABEL_STATUS}" -eq 0 ]; then
-            echo "Labels added successfully: ${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "label-status=success" >> $GITHUB_OUTPUT
+            echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
           else
-            cat <<ALERT
-          > [!WARNING]
-          > Failed to add labels to PR: ${PR_URL} (exit code ${LABEL_STATUS})
-          ALERT
-            echo "label-status=failure" >> $GITHUB_OUTPUT
+            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            > [!WARNING]
+            > Failed to add labels to PR: ${PR_URL} (exit code ${LABEL_STATUS})
+            ALERT
+
+            echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+            echo "label-error=${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
             {
               echo 'label-error<<LABEL_ERROR_EOF'
               echo "${LABEL_OUTPUT}"
