@@ -133,7 +133,7 @@ jobs:
           EOF
           tree -a -L 3 "${TEMPLATES_PATH}"
 
-      - name: Register markdown alert problem matcher
+      - name: Register problem matcher
         env:
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         shell: bash
@@ -146,7 +146,7 @@ jobs:
             exit 0
           fi
 
-          echo "$MATCHER_PATH" >> "$GITHUB_MATCHER"
+          echo "::add-matcher::${MATCHER_PATH}"
 
       - name: Create sync branch
         id: create_sync_branch
