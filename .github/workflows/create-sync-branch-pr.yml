@@ -139,7 +139,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MATCHER_PATH="${TEMPLATES_PATH}/.github/matchers/markdown-alerts.json"
+          MATCHER_PATH="${TEMPLATES_PATH}/matchers/markdown-alerts.json"
 
           if [[ ! -f "$MATCHER_PATH" ]]; then
             echo "::warning::Matcher not found (skipping): $MATCHER_PATH" >&2
@@ -236,7 +236,7 @@ jobs:
           echo "PR title: ${PR_TITLE}"
 
           echo "Loading PR body template"
-          if ! PR_BODY=$(envsubst < "$TEMPLATES_PATH/.github/PULL_REQUEST_TEMPLATE/sync.md"); then
+          if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
             cat <<'ALERT'
           > [!CAUTION]
           > Failed to load PR body template
@@ -304,7 +304,7 @@ jobs:
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
           PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
-          envsubst < "$TEMPLATES_PATH/.github/workflow-templates/pr-created.md" >> $GITHUB_STEP_SUMMARY
+          envsubst < "${TEMPLATES_PATH}/workflow-templates/pr-created.md" >> $GITHUB_STEP_SUMMARY
 
       - name: Output failure summary
         if: failure()
@@ -313,4 +313,4 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
-          envsubst < "$TEMPLATES_PATH/.github/workflow-templates/pr-creation-failed.md" >> $GITHUB_STEP_SUMMARY
+          envsubst < "${TEMPLATES_PATH}/workflow-templates/pr-creation-failed.md" >> $GITHUB_STEP_SUMMARY
