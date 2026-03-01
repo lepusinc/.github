@@ -134,7 +134,7 @@ jobs:
           | --- | ----- |
           | download-path | "${TEMPLATES_PATH}" |
           EOF
-          ls -al "${TEMPLATES_PATH}/**"
+          ls -al "${TEMPLATES_PATH}/"
 
       - name: Register markdown alert problem matcher
         env:
