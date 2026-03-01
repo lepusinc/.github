@@ -272,9 +272,9 @@ jobs:
           LABELS="sync,automated"
           echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
+          EXIT_CODE=0
           set -x
-          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1)
-          EXIT_CODE=$?
+          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) || EXIT_CODE=$?
           set +x
 
           if [ "${EXIT_CODE}" -eq 0 ]; then
