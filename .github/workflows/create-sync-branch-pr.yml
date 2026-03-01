@@ -168,9 +168,9 @@ jobs:
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
           if ! git push --force-with-lease origin "${BRANCH}"; then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!CAUTION]
-            > Failed to push sync branch: ${BRANCH}
-            ALERT
+          > [!CAUTION]
+          > Failed to push sync branch: ${BRANCH}
+          ALERT
             exit 1
           fi
 
