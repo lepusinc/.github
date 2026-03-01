@@ -81,10 +81,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: |
-            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/PULL_REQUEST_TEMPLATE
-            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/workflow-templates
-            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/matchers
+          path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           include-hidden-files: true
           retention-days: 1
 
@@ -134,7 +131,7 @@ jobs:
           | --- | ----- |
           | download-path | "${TEMPLATES_PATH}" |
           EOF
-          ls -al "${TEMPLATES_PATH}/"
+          tree -a -L 3 "${TEMPLATES_PATH}"
 
       - name: Register markdown alert problem matcher
         env:
