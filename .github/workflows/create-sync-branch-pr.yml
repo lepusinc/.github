@@ -55,14 +55,7 @@ jobs:
           CACHE_HIT: ${{ steps.cache_templates.outputs.cache-hit }}
         run: |
           echo "### Cache" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "- Cache $([ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ] && echo 'used' || echo 'missed')" | tee -a "$GITHUB_STEP_SUMMARY"
-
-          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
-          ### Cache
-          | Key | Value |
-          | --- | --- |
-          | `cache-hit` | $([ "$CACHE_HIT" = "true" ] && echo 'used' || echo 'missed') |
-          EOF
+          echo $([ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ] && 'Cache was used.' || 'Cache was not used.') | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout templates
         if: steps.cache_templates.outputs.cache-hit != 'true'
@@ -75,6 +68,7 @@ jobs:
           sparse-checkout: |
             .github/PULL_REQUEST_TEMPLATE
             .github/workflow-templates
+            .github/matchers
           sparse-checkout-cone-mode: false
 
       - name: Upload Artifact
@@ -82,16 +76,24 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
+          path: |
+            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/PULL_REQUEST_TEMPLATE
+            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/workflow-templates
+            ${{ env.WORKFLOW_TEMPLATES_PATH }}/.github/matchers
           include-hidden-files: true
           retention-days: 1
 
       - name: Upload Artifact Result
+        if: success()
         run: |
-          echo "### Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "- Artifact ID: ${{ steps.upload_artifact.outputs.artifact-id }}" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "- Download URL: ${{ steps.upload_artifact.outputs.artifact-url }}" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "- SHA256 digest: ${{ steps.upload_artifact.outputs.artifact-digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "### Upload Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
+          | Key | Value |
+          | --- | ----- |
+          | artifact-id | ${{ steps.upload_artifact.outputs.artifact-id }} |
+          | artifact-url | ${{ steps.upload_artifact.outputs.artifact-url }} |
+          | artifact-digest | ${{ steps.upload_artifact.outputs.artifact-digest }} |
+          EOF
 
           echo "## Output" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
@@ -100,6 +102,7 @@ jobs:
     name: Create pull request
     runs-on: ubuntu-latest
     needs: workflow-template-artifact
+    if: success()
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -115,6 +118,19 @@ jobs:
           name: ${{ needs.workflow-template-artifact.outputs.name }}
           path: _workflow_templates
 
+      - name: Register markdown alert problem matcher
+        run: echo "::add-matcher::_workflow_templates/.github/matchers/markdown-alerts.json"
+
+      - name: Download Artifact Result
+        if: success()
+        run: |
+          echo "### Download Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
+          | Key | Value |
+          | --- | ----- |
+          | download-path | ${{ steps.download_templates.outputs.download-path }} |
+          EOF
+
       - name: Create sync branch
         id: create_sync_branch
         env:
@@ -122,15 +138,29 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
           BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
         run: |
+          echo "Fetching source branch: ${SOURCE_BRANCH}"
           git fetch origin "${SOURCE_BRANCH}"
 
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
+            echo "Sync branch exists, fetching: ${BRANCH}"
             git fetch origin "${BRANCH}"
+          else
+            echo "Sync branch does not exist: ${BRANCH}"
           fi
-          git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
-          git push --force-with-lease origin "${BRANCH}"
 
-          echo "branch=${BRANCH}" | tee -a "$GITHUB_OUTPUT"
+          echo "Creating sync branch: ${BRANCH}"
+          git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
+
+          if ! git push --force-with-lease origin "${BRANCH}"; then
+            cat <<'ALERT'
+          > [!CAUTION]
+          > Failed to push sync branch: ${BRANCH}
+          ALERT
+            exit 1
+          fi
+
+          echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "branch=${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
 
       - name: Check Existing PR
         id: check_existing_pr
@@ -138,10 +168,30 @@ jobs:
           BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          EXISTING_PR=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>/dev/null || true)
-          if [ -n "${EXISTING_PR}" ]; then
-            echo "::notice::PR already exists for ${BRANCH}: ${EXISTING_PR}"
-            echo "pull-request-url=${EXISTING_PR}" >> $GITHUB_OUTPUT
+          echo "Checking for existing PR on branch: ${BRANCH}"
+
+          EXISTING_PR_OUTPUT=""
+          EXISTING_PR=""
+          set +e
+          EXISTING_PR_OUTPUT=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "gh pr view output: $EXISTING_PR_OUTPUT"
+
+          echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ $EXIT_CODE -eq 0 ]; then
+            EXISTING_PR="$EXISTING_PR_OUTPUT"
+            cat <<ALERT
+          > [!NOTE]
+          > PR already exists for ${BRANCH}: $EXISTING_PR
+          ALERT
+            echo "pull-request-url=$EXISTING_PR" >> $GITHUB_OUTPUT
+          else
+            cat <<ALERT
+          > [!WARNING]
+          > No existing PR found (exit code $EXIT_CODE)
+          ALERT
           fi
 
       - name: Create Pull Request
@@ -156,24 +206,45 @@ jobs:
           BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
+          echo "Extracting commit title from commit message"
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
             | head -n 1 \
             | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
           [ -z "${COMMIT_TITLE}" ] && COMMIT_TITLE="(no commit title)"
+          echo "Commit title: ${COMMIT_TITLE}"
 
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
           PR_TITLE="${PR_TITLE:0:256}"
+          echo "PR title: ${PR_TITLE}"
 
-          PR_BODY=$(envsubst < "$TEMPLATES_PATH/.github/PULL_REQUEST_TEMPLATE/sync.md")
+          echo "Loading PR body template"
+          if ! PR_BODY=$(envsubst < "$TEMPLATES_PATH/.github/PULL_REQUEST_TEMPLATE/sync.md"); then
+            cat <<'ALERT'
+          > [!CAUTION]
+          > Failed to load PR body template
+          ALERT
+            exit 1
+          fi
 
-          PR_URL=$(gh pr create \
+          echo "Creating pull request"
+          if ! PR_URL=$(gh pr create \
             --repo "${{ github.repository }}" \
             --base "${TARGET_BRANCH}" \
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
-            --body "${PR_BODY}")
-          echo "pull-request-url=${PR_URL}" >> $GITHUB_OUTPUT
+            --body "${PR_BODY}"); then
+            cat <<'ALERT'
+          > [!CAUTION]
+          > Failed to create pull request
+          ALERT
+            exit 1
+          fi
+
+          echo "PR created: ${PR_URL}"
+
+          echo "### Create Pull Request" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "pull-request-url=${PR_URL}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
         id: add_labels
@@ -183,13 +254,23 @@ jobs:
           PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
           LABELS="sync,automated"
+          echo "Adding labels to PR: ${LABELS}"
+          echo "Target PR: ${PR_URL}"
+
           LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && LABEL_STATUS=0 || LABEL_STATUS=$?
 
-          echo "labels=${LABELS}" >> $GITHUB_OUTPUT
+          echo "gh pr edit output: ${LABEL_OUTPUT}"
+
+          echo "### Add Labels to PR" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "labels=${LABELS}" | tee -a "$GITHUB_OUTPUT"
           if [ "${LABEL_STATUS}" -eq 0 ]; then
+            echo "Labels added successfully: ${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY"
             echo "label-status=success" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Failed to add labels to PR: ${PR_URL}"
+            cat <<ALERT
+          > [!WARNING]
+          > Failed to add labels to PR: ${PR_URL} (exit code ${LABEL_STATUS})
+          ALERT
             echo "label-status=failure" >> $GITHUB_OUTPUT
             {
               echo 'label-error<<LABEL_ERROR_EOF'

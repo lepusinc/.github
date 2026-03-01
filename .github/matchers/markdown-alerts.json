@@ -1,0 +1,52 @@
+{
+  "problemMatcher": [
+    {
+      "type": "notice",
+      "pattern": [
+        {
+          "regexp": "^> \\[!NOTE\\]$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        {
+          "regexp": "^> (.+)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    },
+    {
+      "type": "warning",
+      "pattern": [
+        {
+          "regexp": "^> \\[!WARNING\\]$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        {
+          "regexp": "^> (.+)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "pattern": [
+        {
+          "regexp": "^> \\[!CAUTION\\]$|^> \\[!CRITICAL\\]$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        {
+          "regexp": "^> (.+)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    }
+  ]
+}
