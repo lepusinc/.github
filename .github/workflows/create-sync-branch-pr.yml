@@ -192,7 +192,7 @@ jobs:
           if [ $EXIT_CODE -eq 0 ]; then
             { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!NOTE]
-          PR already exists.
+          > PR already exists.
           ALERT
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
