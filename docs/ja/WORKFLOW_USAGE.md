@@ -6,7 +6,7 @@
 
 ## `create-sync-branch-pr.yml` — 同期ブランチ PR の作成
 
-**ソース:** [`.github/workflows/create-sync-branch-pr.yml`](../.github/workflows/create-sync-branch-pr.yml)
+**ソース:** [`.github/workflows/create-sync-branch-pr.yml`](../../.github/workflows/create-sync-branch-pr.yml)
 
 ### 概要
 

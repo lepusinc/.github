@@ -6,7 +6,7 @@ This document explains how to call shared reusable workflows hosted in this repo
 
 ## `create-sync-branch-pr.yml` — Create a Sync Branch PR
 
-**Source:** [`.github/workflows/create-sync-branch-pr.yml`](../.github/workflows/create-sync-branch-pr.yml)
+**Source:** [`.github/workflows/create-sync-branch-pr.yml`](../../.github/workflows/create-sync-branch-pr.yml)
 
 ### Overview
 
