@@ -120,18 +120,22 @@ jobs:
 
       - name: Download Artifact Result
         if: success()
+        env:
+          TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
           echo "### Download Artifact" | tee -a "$GITHUB_STEP_SUMMARY"
           cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
           | Key | Value |
           | --- | ----- |
-          | download-path | ${{ steps.download_templates.outputs.download-path }} |
+          | download-path | "$TEMPLATES_PATH" |
           EOF
+          ls -al "$TEMPLATES_PATH/**"
 
       - name: Register markdown alert problem matcher
         env:
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
-        run: echo "::add-matcher::$TEMPLATES_PATH/.github/matchers/markdown-alerts.json"
+        run: |
+          echo "::add-matcher::$TEMPLATES_PATH/.github/matchers/markdown-alerts.json"
 
       - name: Create sync branch
         id: create_sync_branch
