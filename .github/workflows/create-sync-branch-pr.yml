@@ -35,12 +35,12 @@ jobs:
         env:
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
+          echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
+
           TEMPLATE_REPOSITORY="${WORKFLOW_REF%%/.github/workflows/*}"
           TEMPLATE_REF="${WORKFLOW_REF##*@}"
-
-          echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
-          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
       - name: Cache templates
         id: cache_templates
@@ -98,7 +98,7 @@ jobs:
           EOF
 
           echo "## Output" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+          echo "name=${{ env.ARTIFACT_NAME }}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
   create-pr:
     name: Create pull request
@@ -155,19 +155,17 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
           BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
         run: |
-          echo "Fetching source branch: ${SOURCE_BRANCH}"
-          git fetch origin "${SOURCE_BRANCH}"
+          echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
 
+          git fetch origin "${SOURCE_BRANCH}"
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
-            echo "Sync branch exists, fetching: ${BRANCH}"
+            echo "Sync branch exists." | tee -a "$GITHUB_STEP_SUMMARY"
             git fetch origin "${BRANCH}"
           else
-            echo "Sync branch does not exist: ${BRANCH}"
+            echo "Sync branch does not exist." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
-          echo "Creating sync branch: ${BRANCH}"
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
-
           if ! git push --force-with-lease origin "${BRANCH}"; then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!CAUTION]
@@ -176,39 +174,37 @@ jobs:
             exit 1
           fi
 
-          echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "branch=${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
       - name: Check Existing PR
         id: check_existing_pr
+        if: success()
         env:
           BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking for existing PR on branch: ${BRANCH}"
+          echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
 
           EXISTING_PR_OUTPUT=""
-          EXISTING_PR=""
-          set +e
+          set -x
           EXISTING_PR_OUTPUT=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>&1)
           EXIT_CODE=$?
-          set -e
+          set +x
 
-          echo "gh pr view output: $EXISTING_PR_OUTPUT"
-
-          echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ $EXIT_CODE -eq 0 ]; then
-            EXISTING_PR="$EXISTING_PR_OUTPUT"
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!NOTE]
-            > PR already exists for ${BRANCH}: $EXISTING_PR
+            > PR already exists.
             ALERT
-            echo "pull-request-url=$EXISTING_PR" >> $GITHUB_OUTPUT
+
+            echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!WARNING]
-            > No existing PR found (exit code $EXIT_CODE)
+            > PR not found. (exit code $EXIT_CODE)
             ALERT
+
+            echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Create Pull Request
@@ -223,19 +219,19 @@ jobs:
           BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
         run: |
-          echo "Extracting commit title from commit message"
+          echo "### Create Pull Request" | tee -a "$GITHUB_STEP_SUMMARY"
+
           COMMIT_TITLE=$(printf '%s\n' "${COMMIT_MESSAGE}" \
             | sed -n '/[^[:space:]]/,$p' \
             | head -n 1 \
             | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
           [ -z "${COMMIT_TITLE}" ] && COMMIT_TITLE="(no commit title)"
-          echo "Commit title: ${COMMIT_TITLE}"
+          echo "Commit title: ${COMMIT_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
           PR_TITLE="${PR_TITLE:0:256}"
-          echo "PR title: ${PR_TITLE}"
+          echo "PR title: ${PR_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
-          echo "Loading PR body template"
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!CAUTION]
@@ -244,14 +240,17 @@ jobs:
             exit 1
           fi
 
-          echo "Creating pull request"
-          if ! PR_URL=$(gh pr create \
+          set -x
+          PR_URL=$(gh pr create \
             --repo "${{ github.repository }}" \
             --base "${TARGET_BRANCH}" \
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
-            --body "${PR_BODY}"); then
-            
+            --body "${PR_BODY}")
+          EXIT_CODE=$?
+          set +x
+
+          if [ ${EXIT_CODE} -ne 0 ]; then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!CAUTION]
             > Failed to create pull request
@@ -259,10 +258,7 @@ jobs:
             exit 1
           fi
 
-          echo "PR created: ${PR_URL}"
-
-          echo "### Create Pull Request" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "pull-request-url=${PR_URL}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+          echo "pull-request-url=${PR_URL}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
         id: add_labels
@@ -271,32 +267,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
-          LABELS="sync,automated"
-          echo "Adding labels to PR: ${LABELS}"
-          echo "Target PR: ${PR_URL}"
-
-          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && LABEL_STATUS=0 || LABEL_STATUS=$?
-
-          echo "gh pr edit output: ${LABEL_OUTPUT}"
-
           echo "### Add Labels to PR" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
-          if [ "${LABEL_STATUS}" -eq 0 ]; then
-            echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
+
+          LABELS="sync,automated"
+          echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+          set -x
+          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1)
+          EXIT_CODE=$?
+          set +x
+
+          if [ "${EXIT_CODE}" -eq 0 ]; then
+            echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
+            echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
             > [!WARNING]
-            > Failed to add labels to PR: ${PR_URL} (exit code ${LABEL_STATUS})
+            > Failed to add labels (exit code ${EXIT_CODE})
             ALERT
 
-            echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
-            echo "label-error=${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY" | tee -a "$GITHUB_OUTPUT"
             {
               echo 'label-error<<LABEL_ERROR_EOF'
               echo "${LABEL_OUTPUT}"
               echo 'LABEL_ERROR_EOF'
-            } >> $GITHUB_OUTPUT
+            } >> "$GITHUB_OUTPUT"
           fi
+
+          echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Output summary
         if: success()
