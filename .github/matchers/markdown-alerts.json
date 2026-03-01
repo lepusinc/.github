@@ -1,0 +1,46 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "markdown-alerts-note",
+      "severity": "notice",
+      "pattern": [
+        {
+          "regexp": "^> \\[!NOTE\\]$"
+        },
+        {
+          "regexp": "^> (.*)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    },
+    {
+      "owner": "markdown-alerts-warning",
+      "severity": "warning",
+      "pattern": [
+        {
+          "regexp": "^> \\[!WARNING\\]$"
+        },
+        {
+          "regexp": "^> (.*)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    },
+    {
+      "owner": "markdown-alerts-error",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^> \\[!CAUTION\\]$|^> \\[!CRITICAL\\]$"
+        },
+        {
+          "regexp": "^> (.*)$",
+          "message": 1,
+          "loop": true
+        }
+      ]
+    }
+  ]
+}
