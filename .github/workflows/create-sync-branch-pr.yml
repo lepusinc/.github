@@ -167,7 +167,7 @@ jobs:
 
           git checkout -B "${BRANCH}" origin/${SOURCE_BRANCH}
           if ! git push --force-with-lease origin "${BRANCH}"; then
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!CAUTION]
           > Failed to push sync branch: ${BRANCH}
           ALERT
@@ -185,16 +185,14 @@ jobs:
         run: |
           echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
 
-          EXISTING_PR_OUTPUT=""
           set -x
-          EXISTING_PR_OUTPUT=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>&1)
-          EXIT_CODE=$?
+          EXISTING_PR_OUTPUT=$(gh pr view "${BRANCH}" --repo "${{ github.repository }}" --json url --jq '.url' 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
           set +x
 
           if [ $EXIT_CODE -eq 0 ]; then
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-          > [!NOTE]
-          > PR already exists.
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
+          > [!NOTE] PR already exists.
+          PR already exists.
           ALERT
 
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
@@ -202,9 +200,9 @@ jobs:
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
           > [!WARNING]
           > PR not found. (exit code $EXIT_CODE)
-          ALERT
 
-            echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+          $EXISTING_PR_OUTPUT
+          ALERT
           fi
 
       - name: Create Pull Request
@@ -233,7 +231,7 @@ jobs:
           echo "PR title: ${PR_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!CAUTION]
           > Failed to load PR body template
           ALERT
@@ -246,12 +244,11 @@ jobs:
             --base "${TARGET_BRANCH}" \
             --head "${BRANCH}" \
             --title "${PR_TITLE}" \
-            --body "${PR_BODY}")
-          EXIT_CODE=$?
+            --body "${PR_BODY}") && EXIT_CODE=0 || EXIT_CODE=$?
           set +x
 
           if [ ${EXIT_CODE} -ne 0 ]; then
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!CAUTION]
           > Failed to create pull request
           ALERT
@@ -272,19 +269,21 @@ jobs:
           LABELS="sync,automated"
           echo "labels=${LABELS}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
-          EXIT_CODE=0
           set -x
-          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) || EXIT_CODE=$?
+          LABEL_OUTPUT=$(gh pr edit "${PR_URL}" --add-label "${LABELS}" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
           set +x
 
           if [ "${EXIT_CODE}" -eq 0 ]; then
             echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+            echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
           > [!WARNING]
           > Failed to add labels (exit code ${EXIT_CODE})
+
+          ${LABEL_OUTPUT}
           ALERT
 
             {
@@ -293,8 +292,6 @@ jobs:
               echo 'LABEL_ERROR_EOF'
             } >> "$GITHUB_OUTPUT"
           fi
-
-          echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Output summary
         if: success()
