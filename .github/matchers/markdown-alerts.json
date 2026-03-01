@@ -1,13 +1,11 @@
 {
   "problemMatcher": [
     {
-      "type": "notice",
+      "owner": "markdown-alerts",
+      "severity": "notice",
       "pattern": [
         {
-          "regexp": "^> \\[!NOTE\\]$",
-          "file": 1,
-          "location": 2,
-          "message": 3
+          "regexp": "^> \\[!NOTE\\]$"
         },
         {
           "regexp": "^> (.+)$",
@@ -17,13 +15,11 @@
       ]
     },
     {
-      "type": "warning",
+      "owner": "markdown-alerts",
+      "severity": "warning",
       "pattern": [
         {
-          "regexp": "^> \\[!WARNING\\]$",
-          "file": 1,
-          "location": 2,
-          "message": 3
+          "regexp": "^> \\[!WARNING\\]$"
         },
         {
           "regexp": "^> (.+)$",
@@ -33,13 +29,11 @@
       ]
     },
     {
-      "type": "error",
+      "owner": "markdown-alerts",
+      "severity": "error",
       "pattern": [
         {
-          "regexp": "^> \\[!CAUTION\\]$|^> \\[!CRITICAL\\]$",
-          "file": 1,
-          "location": 2,
-          "message": 3
+          "regexp": "^> \\[!CAUTION\\]$|^> \\[!CRITICAL\\]$"
         },
         {
           "regexp": "^> (.+)$",
