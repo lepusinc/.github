@@ -81,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
+          path: "${{ env.WORKFLOW_TEMPLATES_PATH }}/.github"
           include-hidden-files: true
           retention-days: 1
 
@@ -136,8 +136,17 @@ jobs:
       - name: Register markdown alert problem matcher
         env:
           TEMPLATES_PATH: ${{ steps.download_templates.outputs.download-path }}
+        shell: bash
         run: |
-          echo "::add-matcher::$TEMPLATES_PATH/.github/matchers/markdown-alerts.json"
+          set -euo pipefail
+          MATCHER_PATH="${TEMPLATES_PATH}/.github/matchers/markdown-alerts.json"
+
+          if [[ ! -f "$MATCHER_PATH" ]]; then
+            echo "::warning::Matcher not found (skipping): $MATCHER_PATH" >&2
+            exit 0
+          fi
+
+          echo "$MATCHER_PATH" >> "$GITHUB_MATCHER"
 
       - name: Create sync branch
         id: create_sync_branch
