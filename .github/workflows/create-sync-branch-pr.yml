@@ -191,18 +191,16 @@ jobs:
 
           if [ $EXIT_CODE -eq 0 ]; then
             { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
-          > [!NOTE] PR already exists.
+          > [!NOTE]
           PR already exists.
           ALERT
-
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!WARNING]
           > PR not found. (exit code $EXIT_CODE)
-
-          $EXISTING_PR_OUTPUT
           ALERT
+            echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           fi
 
       - name: Create Pull Request
@@ -275,15 +273,12 @@ jobs:
 
           if [ "${EXIT_CODE}" -eq 0 ]; then
             echo "label-status=success" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
-            echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
-            cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
+            { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
           > [!WARNING]
           > Failed to add labels (exit code ${EXIT_CODE})
-
-          ${LABEL_OUTPUT}
           ALERT
 
             {
@@ -292,6 +287,8 @@ jobs:
               echo 'LABEL_ERROR_EOF'
             } >> "$GITHUB_OUTPUT"
           fi
+
+          echo "${LABEL_OUTPUT}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Output summary
         if: success()
