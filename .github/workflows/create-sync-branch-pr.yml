@@ -193,16 +193,16 @@ jobs:
 
           if [ $EXIT_CODE -eq 0 ]; then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!NOTE]
-            > PR already exists.
-            ALERT
+          > [!NOTE]
+          > PR already exists.
+          ALERT
 
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!WARNING]
-            > PR not found. (exit code $EXIT_CODE)
-            ALERT
+          > [!WARNING]
+          > PR not found. (exit code $EXIT_CODE)
+          ALERT
 
             echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
@@ -234,9 +234,9 @@ jobs:
 
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!CAUTION]
-            > Failed to load PR body template
-            ALERT
+          > [!CAUTION]
+          > Failed to load PR body template
+          ALERT
             exit 1
           fi
 
@@ -252,9 +252,9 @@ jobs:
 
           if [ ${EXIT_CODE} -ne 0 ]; then
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!CAUTION]
-            > Failed to create pull request
-            ALERT
+          > [!CAUTION]
+          > Failed to create pull request
+          ALERT
             exit 1
           fi
 
@@ -283,9 +283,9 @@ jobs:
             echo "label-status=failure" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
             cat <<ALERT | tee -a "$GITHUB_STEP_SUMMARY"
-            > [!WARNING]
-            > Failed to add labels (exit code ${EXIT_CODE})
-            ALERT
+          > [!WARNING]
+          > Failed to add labels (exit code ${EXIT_CODE})
+          ALERT
 
             {
               echo 'label-error<<LABEL_ERROR_EOF'
