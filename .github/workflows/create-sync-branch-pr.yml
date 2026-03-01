@@ -55,7 +55,12 @@ jobs:
           CACHE_HIT: ${{ steps.cache_templates.outputs.cache-hit }}
         run: |
           echo "### Cache" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo $([ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ] && 'Cache was used.' || 'Cache was not used.') | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.cache_templates.outputs.cache-hit }}" = "true" ]; then
+            MESSAGE="Cache was used."
+          else
+            MESSAGE="Cache was not used."
+          fi
+          echo "$MESSAGE" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout templates
         if: steps.cache_templates.outputs.cache-hit != 'true'
@@ -127,9 +132,9 @@ jobs:
           cat <<EOF | tee -a "$GITHUB_STEP_SUMMARY"
           | Key | Value |
           | --- | ----- |
-          | download-path | "$TEMPLATES_PATH" |
+          | download-path | "${TEMPLATES_PATH}" |
           EOF
-          ls -al "$TEMPLATES_PATH/**"
+          ls -al "${TEMPLATES_PATH}/**"
 
       - name: Register markdown alert problem matcher
         env:
