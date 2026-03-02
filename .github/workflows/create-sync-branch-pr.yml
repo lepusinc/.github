@@ -56,7 +56,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: ${{ env.TEMPLATE_REPOSITORY }}
-          ref: ${{ github.repository == env.TEMPLATE_REPOSITORY && github.event_name == 'workflow_dispatch' && github.ref_name || 'main' }}
+          # If this repository is the template repository and the event is workflow_dispatch,
+          # use the current ref_name; otherwise, fall back to 'main'.
+          ref: ${{ (github.repository == env.TEMPLATE_REPOSITORY && github.event_name == 'workflow_dispatch' && github.ref_name) || 'main' }}
           token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           sparse-checkout: |
