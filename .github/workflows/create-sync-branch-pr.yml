@@ -42,8 +42,17 @@ jobs:
           echo "ref=${REF}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
           set -x
-          SHA=$(gh api "repos/${REPOSITORY}/commits/${REF}" --jq '.sha')
+          SHA=$(gh api "repos/${REPOSITORY}/commits/${REF}" --jq '.sha' 2>&1) || {
+            echo "::error::Failed to resolve SHA for ${REPOSITORY}@${REF}: ${SHA}" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
           set +x
+
+          if [ -z "${SHA}" ]; then
+            echo "::error::SHA is empty for ${REPOSITORY}@${REF}" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
           echo "sha=${SHA}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
       - name: Cache templates
