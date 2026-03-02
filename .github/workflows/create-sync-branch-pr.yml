@@ -1,5 +1,5 @@
-name: Create pull request to sync
-run-name: Create pull request to sync. (${{ github.ref_name }} -> ${{ inputs.target_branch }})
+name: Create sync pull request
+run-name: Create sync pull request. (${{ github.ref_name }} -> ${{ inputs.target_branch }})
 
 on:
   workflow_call:
@@ -27,21 +27,10 @@ jobs:
     env:
       WORKFLOW_TEMPLATES_PATH: _workflow_templates
       ARTIFACT_NAME: workflow-templates
+      TEMPLATE_REPOSITORY: lepusinc/.github
     outputs:
       name: ${{ env.ARTIFACT_NAME }}
     steps:
-      - name: Extract template source
-        id: extract_template_source
-        env:
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-        run: |
-          echo "### Template Source" | tee -a "$GITHUB_STEP_SUMMARY"
-
-          TEMPLATE_REPOSITORY="${WORKFLOW_REF%%/.github/workflows/*}"
-          TEMPLATE_REF="${WORKFLOW_REF##*@}"
-          echo "repository=${TEMPLATE_REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
-          echo "ref=${TEMPLATE_REF}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
-
       - name: Cache templates
         id: cache_templates
         uses: actions/cache@v5
@@ -66,8 +55,10 @@ jobs:
         if: steps.cache_templates.outputs.cache-hit != 'true'
         uses: actions/checkout@v6
         with:
-          repository: ${{ steps.extract_template_source.outputs.repository }}
-          ref: ${{ steps.extract_template_source.outputs.ref }}
+          repository: ${{ env.TEMPLATE_REPOSITORY }}
+          # If this repository is the template repository and the event is workflow_dispatch,
+          # use the current ref_name; otherwise, fall back to 'main'.
+          ref: ${{ (github.repository == env.TEMPLATE_REPOSITORY && github.event_name == 'workflow_dispatch' && github.ref_name) || 'main' }}
           token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           sparse-checkout: |
