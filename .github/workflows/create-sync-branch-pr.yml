@@ -31,12 +31,27 @@ jobs:
     outputs:
       name: ${{ env.ARTIFACT_NAME }}
     steps:
+      - name: Resolve template source
+        id: resolve_template_source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ env.TEMPLATE_REPOSITORY }}
+          REF: ${{ (github.repository == env.TEMPLATE_REPOSITORY && github.event_name == 'workflow_dispatch' && github.ref_name) || 'main' }}
+        run: |
+          echo "repository=${REPOSITORY}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          echo "ref=${REF}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+          set -x
+          SHA=$(gh api "repos/${REPOSITORY}/commits/${REF}" --jq '.sha')
+          set +x
+          echo "sha=${SHA}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
       - name: Cache templates
         id: cache_templates
         uses: actions/cache@v5
         with:
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
-          key: workflow-templates-${{ github.workflow_sha }}
+          key: workflow-templates-${{ steps.resolve_template_source.outputs.sha }}
 
       - name: Cache Result
         id: cache_result
@@ -55,10 +70,8 @@ jobs:
         if: steps.cache_templates.outputs.cache-hit != 'true'
         uses: actions/checkout@v6
         with:
-          repository: ${{ env.TEMPLATE_REPOSITORY }}
-          # If this repository is the template repository and the event is workflow_dispatch,
-          # use the current ref_name; otherwise, fall back to 'main'.
-          ref: ${{ (github.repository == env.TEMPLATE_REPOSITORY && github.event_name == 'workflow_dispatch' && github.ref_name) || 'main' }}
+          repository: ${{ steps.resolve_template_source.outputs.repository }}
+          ref: ${{ steps.resolve_template_source.outputs.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ env.WORKFLOW_TEMPLATES_PATH }}
           sparse-checkout: |
