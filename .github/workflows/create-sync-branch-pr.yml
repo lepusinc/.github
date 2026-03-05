@@ -166,10 +166,11 @@ jobs:
         env:
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
-          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}-${{ github.sha }}"
+          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
+          SHA: ${{ github.sha }}
         run: |
           echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
-          BRANCH="${BRANCH:0:250}"
+          BRANCH="${BRANCH:0:240}-${SHA:0:7}"
 
           git fetch origin "${SOURCE_BRANCH}"
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
