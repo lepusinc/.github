@@ -210,7 +210,7 @@ jobs:
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
             { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
-          > [!WARNING]
+          > [!NOTE]
           > PR not found. (exit code $EXIT_CODE)
           ALERT
             echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
