@@ -166,7 +166,7 @@ jobs:
         env:
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
-          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
+          BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}-${{ github.sha }}"
         run: |
           echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
 
