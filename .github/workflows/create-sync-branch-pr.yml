@@ -169,6 +169,7 @@ jobs:
           BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}-${{ github.sha }}"
         run: |
           echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
+          BRANCH="${BRANCH:0:250}"
 
           git fetch origin "${SOURCE_BRANCH}"
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
@@ -238,7 +239,7 @@ jobs:
           echo "Commit title: ${COMMIT_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
-          PR_TITLE="${PR_TITLE:0:256}"
+          PR_TITLE="${PR_TITLE:0:250}"
           echo "PR title: ${PR_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
