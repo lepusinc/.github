@@ -167,8 +167,14 @@ jobs:
           SOURCE_BRANCH: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ inputs.target_branch }}
           BRANCH: "sync/${{ github.ref_name }}-to-${{ inputs.target_branch }}"
+          SHA: ${{ github.sha }}
         run: |
           echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
+          # NOTE: For automated sync branches, uniqueness is prioritized over brevity.
+          # The development-guidelines recommend short branch names "where possible",
+          # but this is an acknowledged exception: the full SHA suffix ensures no two
+          # commits ever share a sync branch, which is critical for correctness.
+          BRANCH="${BRANCH:0:240}-${SHA:0:7}"
 
           git fetch origin "${SOURCE_BRANCH}"
           if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
@@ -210,7 +216,7 @@ jobs:
             echo "pull-request-url=$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           else
             { cat <<ALERT; echo; } | tee -a "$GITHUB_STEP_SUMMARY"
-          > [!WARNING]
+          > [!NOTE]
           > PR not found. (exit code $EXIT_CODE)
           ALERT
             echo "$EXISTING_PR_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -238,7 +244,7 @@ jobs:
           echo "Commit title: ${COMMIT_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           PR_TITLE="🔄 Sync ${SOURCE_BRANCH} to ${TARGET_BRANCH} - ${COMMIT_TITLE}"
-          PR_TITLE="${PR_TITLE:0:256}"
+          PR_TITLE="${PR_TITLE:0:250}"
           echo "PR title: ${PR_TITLE}" | tee -a "$GITHUB_STEP_SUMMARY"
 
           if ! PR_BODY=$(envsubst < "${TEMPLATES_PATH}/PULL_REQUEST_TEMPLATE/sync.md"); then
