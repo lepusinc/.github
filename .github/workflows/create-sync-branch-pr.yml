@@ -170,6 +170,10 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           echo "### Create Sync Branch" | tee -a "$GITHUB_STEP_SUMMARY"
+          # NOTE: For automated sync branches, uniqueness is prioritized over brevity.
+          # The development-guidelines recommend short branch names "where possible",
+          # but this is an acknowledged exception: the full SHA suffix ensures no two
+          # commits ever share a sync branch, which is critical for correctness.
           BRANCH="${BRANCH:0:240}-${SHA:0:7}"
 
           git fetch origin "${SOURCE_BRANCH}"
