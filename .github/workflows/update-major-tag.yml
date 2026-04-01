@@ -40,19 +40,23 @@ jobs:
             TAG_NAME="${{ github.ref_name }}"
           fi
           MAJOR_TAG=$(echo "${TAG_NAME}" | grep -oP '^v\d+')
+          MINOR_TAG=$(echo "${TAG_NAME}" | grep -oP '^v\d+\.\d+')
           echo "tag_name=${TAG_NAME}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
           echo "major_tag=${MAJOR_TAG}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          echo "minor_tag=${MINOR_TAG}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
-      - name: Move major tag to current commit
+      - name: Move major/minor tags to current commit
         if: steps.dry-run.outputs.is_dry_run == 'false'
         run: |
-          echo "### Move major tag to current commit" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "### Move major/minor tags to current commit" | tee -a "$GITHUB_STEP_SUMMARY"
           git tag -f "${{ steps.tags.outputs.major_tag }}" "${{ github.sha }}" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
-          git push origin "${{ steps.tags.outputs.major_tag }}" --force 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          git tag -f "${{ steps.tags.outputs.minor_tag }}" "${{ github.sha }}" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          git push origin "${{ steps.tags.outputs.major_tag }}" "${{ steps.tags.outputs.minor_tag }}" --force 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Move major tag to current commit (dry run)
+      - name: Move major/minor tags to current commit (dry run)
         if: steps.dry-run.outputs.is_dry_run == 'true'
         run: |
-          echo "### Move major tag to current commit (dry run)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "### Move major/minor tags to current commit (dry run)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "[DRY RUN] git tag -f ${{ steps.tags.outputs.major_tag }} ${{ github.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "[DRY RUN] git push origin ${{ steps.tags.outputs.major_tag }} --force" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "[DRY RUN] git tag -f ${{ steps.tags.outputs.minor_tag }} ${{ github.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "[DRY RUN] git push origin ${{ steps.tags.outputs.major_tag }} ${{ steps.tags.outputs.minor_tag }} --force" | tee -a "$GITHUB_STEP_SUMMARY"
