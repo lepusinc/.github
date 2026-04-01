@@ -18,6 +18,9 @@
 # macOS Finder files
 .fseventsd
 
+# JetBrains IDE files
+.idea/
+
 # VSCode settings and workspace files
 .vscode/
 *.code-workspace
