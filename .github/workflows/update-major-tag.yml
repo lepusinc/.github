@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name to simulate (e.g. v1.1.0)'
+        default: 'v0.1.2-test'
 
 permissions:
   contents: write
@@ -14,8 +19,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Move major tag to current commit
+      - name: Check dry run
+        id: dry-run
+        run: echo "is_dry_run=${{ !startsWith(github.ref, 'refs/tags/') }}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+      - name: Resolve tag names
+        id: tags
         run: |
-          MAJOR_TAG=$(echo "${{ github.ref_name }}" | grep -oP '^v\d+')
-          git tag -f "$MAJOR_TAG" "${{ github.sha }}"
-          git push origin "$MAJOR_TAG" --force
+          if ${{ steps.dry-run.outputs.is_dry_run }}; then
+            TAG_NAME="${{ inputs.tag_name }}"
+          else
+            TAG_NAME="${{ github.ref_name }}"
+          fi
+          MAJOR_TAG=$(echo "${TAG_NAME}" | grep -oP '^v\d+')
+          echo "tag_name=${TAG_NAME}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+          echo "major_tag=${MAJOR_TAG}" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
+
+      - name: Move major tag to current commit
+        if: steps.dry-run.outputs.is_dry_run == 'false'
+        run: |
+          git tag -f "${{ steps.tags.outputs.major_tag }}" "${{ github.sha }}" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          git push origin "${{ steps.tags.outputs.major_tag }}" --force 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Move major tag to current commit (dry run)
+        if: steps.dry-run.outputs.is_dry_run == 'true'
+        run: |
+          echo "[DRY RUN] git tag -f ${{ steps.tags.outputs.major_tag }} ${{ github.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "[DRY RUN] git push origin ${{ steps.tags.outputs.major_tag }} --force" | tee -a "$GITHUB_STEP_SUMMARY"
