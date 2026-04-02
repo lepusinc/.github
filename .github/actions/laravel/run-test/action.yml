@@ -10,6 +10,10 @@ inputs:
     description: Laravel version constraint (e.g. "11.*")
     required: false
     default: '12.*'
+  working-directory:
+    description: Working directory to run Composer commands in
+    required: false
+    default: '.'
 
 runs:
   using: composite
@@ -18,12 +22,15 @@ runs:
       uses: lepusinc/.github/.github/actions/php/setup-composer@main
       with:
         php: ${{ inputs.php }}
+        working-directory: ${{ inputs.working-directory }}
 
     - name: Install Laravel dependencies
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: composer require --dev "laravel/framework:${{ inputs.laravel }}" "orchestra/testbench" "pestphp/pest-plugin-laravel" --no-interaction --no-update
 
     - name: Run tests
       uses: lepusinc/.github/.github/actions/php/run-test@main
       with:
         php: ${{ inputs.php }}
+        working-directory: ${{ inputs.working-directory }}

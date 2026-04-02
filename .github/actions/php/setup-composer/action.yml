@@ -6,6 +6,10 @@ inputs:
     description: PHP version to use
     required: false
     default: '8.4'
+  working-directory:
+    description: Working directory to run Composer commands in
+    required: false
+    default: '.'
 
 runs:
   using: composite
@@ -21,6 +25,7 @@ runs:
     - name: Configure platform PHP version
       if: ${{ !env.INSTALLED_PHP_VERSION }}
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: composer config platform.php ${{ steps.setup_php.outputs.php-version }}
 
     - name: Mark PHP setup done
