@@ -14,6 +14,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Print heading
+      if: ${{ !env.INSTALLED_PHP_VERSION }}
+      shell: bash
+      run: echo "### Setup PHP & Composer" | tee -a "$GITHUB_STEP_SUMMARY"
+
     - name: Setup PHP
       id: setup_php
       if: ${{ !env.INSTALLED_PHP_VERSION }}
@@ -27,6 +32,15 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: composer config platform.php ${{ steps.setup_php.outputs.php-version }}
+
+    - name: Output installed versions
+      if: ${{ !env.INSTALLED_PHP_VERSION }}
+      shell: bash
+      run: |
+        {
+          echo "- PHP: $(php -r 'echo PHP_VERSION;')"
+          echo "- Composer: $(composer --version --no-ansi)"
+        } | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Mark PHP setup done
       if: ${{ !env.INSTALLED_PHP_VERSION }}

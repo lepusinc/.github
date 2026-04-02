@@ -13,4 +13,6 @@ runs:
     - name: Run tests
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: vendor/bin/pest --parallel --no-progress
+      run: |
+        echo "### Test Results" | tee -a "$GITHUB_STEP_SUMMARY"
+        vendor/bin/pest --parallel --no-progress --colors=never | tee -a "$GITHUB_STEP_SUMMARY"
