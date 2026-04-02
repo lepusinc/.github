@@ -26,18 +26,21 @@ runs:
         JUNIT_PATH=/tmp/pest-report.xml
 
         set -x
-        vendor/bin/pest --parallel --no-progress --log-junit="$JUNIT_PATH" && EXIT_CODE=0 || EXIT_CODE=$?
+        vendor/bin/pest --parallel --no-progress --log-junit="$JUNIT_PATH" || true
         set +x
 
+        if [ ! -f "$JUNIT_PATH" ]; then
+          echo "::error::JUnit XML が生成されませんでした。Pest の起動に失敗した可能性があります。"
+          exit 1
+        fi
+
         echo "junit-path=$JUNIT_PATH" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
-        exit "$EXIT_CODE"
 
     - name: Report test results
       uses: dorny/test-reporter@v3
       if: ${{ !cancelled() }}
       with:
-        name: Pest Tests
+        name: Test results
         path: ${{ steps.run-tests.outputs.junit-path }}
         reporter: phpunit-junit
-        fail-on-error: false
         use-actions-summary: ${{ inputs.annotations != 'true' }}
