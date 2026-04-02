@@ -10,6 +10,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Register PHPUnit problem matcher
+      shell: bash
+      run: echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
+
     - name: Run tests
       shell: bash
       working-directory: ${{ inputs.working-directory }}
