@@ -29,20 +29,8 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: composer require --dev "laravel/framework:${{ inputs.laravel }}" --no-interaction --no-update
 
-    - name: Generate composer.lock
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: composer update --no-install --prefer-dist --no-interaction --no-progress
-
-    - name: Cache Composer files
-      uses: actions/cache@v5
+    - name: Setup test environment
+      uses: lepusinc/.github/.github/actions/php/setup-test@v1
       with:
-        path: ~/.composer/cache
-        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-composer-
-
-    - name: Install dependencies
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: composer install --prefer-dist --no-interaction --no-progress
+        php: ${{ inputs.php }}
+        working-directory: ${{ inputs.working-directory }}
