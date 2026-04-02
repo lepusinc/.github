@@ -6,17 +6,23 @@ inputs:
     description: PHP version to use
     required: false
     default: '8.4'
+  working-directory:
+    description: Working directory to run Composer and Pest commands in
+    required: false
+    default: '.'
 
 runs:
   using: composite
   steps:
     - name: Setup Composer
-      uses: lepusinc/.github/.github/actions/php/setup-composer@main
+      uses: lepusinc/.github/.github/actions/php/setup-composer@v1
       with:
         php: ${{ inputs.php }}
+        working-directory: ${{ inputs.working-directory }}
 
     - name: Generate composer.lock
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: composer update --no-install --prefer-dist --no-interaction --no-progress
 
     - name: Cache Composer files
@@ -29,8 +35,10 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: composer install --prefer-dist --no-interaction --no-progress
 
     - name: Run tests
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: vendor/bin/pest --parallel --no-progress
