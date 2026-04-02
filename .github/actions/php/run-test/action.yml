@@ -15,7 +15,7 @@ runs:
   using: composite
   steps:
     - name: Setup Composer
-      uses: lepusinc/.github/.github/actions/php/setup-composer@main
+      uses: lepusinc/.github/.github/actions/php/setup-composer@v1
       with:
         php: ${{ inputs.php }}
         working-directory: ${{ inputs.working-directory }}
