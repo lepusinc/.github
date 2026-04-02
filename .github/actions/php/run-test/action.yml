@@ -1,43 +1,15 @@
 name: Run Tests
-description: Setup PHP, install dependencies, and run Pest tests
+description: Run Pest tests
 
 inputs:
-  php:
-    description: PHP version to use
-    required: false
-    default: '8.4'
   working-directory:
-    description: Working directory to run Composer and Pest commands in
+    description: Working directory to run Pest commands in
     required: false
     default: '.'
 
 runs:
   using: composite
   steps:
-    - name: Setup Composer
-      uses: lepusinc/.github/.github/actions/php/setup-composer@v1
-      with:
-        php: ${{ inputs.php }}
-        working-directory: ${{ inputs.working-directory }}
-
-    - name: Generate composer.lock
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: composer update --no-install --prefer-dist --no-interaction --no-progress
-
-    - name: Cache Composer files
-      uses: actions/cache@v5
-      with:
-        path: ~/.composer/cache
-        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-composer-
-
-    - name: Install dependencies
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: composer install --prefer-dist --no-interaction --no-progress
-
     - name: Run tests
       shell: bash
       working-directory: ${{ inputs.working-directory }}

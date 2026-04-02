@@ -1,5 +1,5 @@
-name: Run Laravel Tests
-description: Install Laravel dependencies and run Pest tests
+name: Setup Laravel Test Environment
+description: Setup PHP, install Laravel dependencies, and install Composer packages
 
 inputs:
   php:
@@ -29,8 +29,8 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: composer require --dev "laravel/framework:${{ inputs.laravel }}" --no-interaction --no-update
 
-    - name: Run tests
-      uses: lepusinc/.github/.github/actions/php/run-test@v1
+    - name: Setup test environment
+      uses: lepusinc/.github/.github/actions/php/setup-test@v1
       with:
         php: ${{ inputs.php }}
         working-directory: ${{ inputs.working-directory }}
