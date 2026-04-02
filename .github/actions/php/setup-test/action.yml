@@ -36,6 +36,7 @@ runs:
     - name: Get Composer cache directory
       id: composer-cache-dir
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: echo "path=$(composer config cache-dir)" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
     - name: Cache Composer files
