@@ -50,4 +50,6 @@ runs:
     - name: Output installed versions
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: composer show --no-ansi | tee -a "$GITHUB_STEP_SUMMARY"
+      run: |
+        echo "### Installed Packages" | tee -a "$GITHUB_STEP_SUMMARY"
+        composer show --no-ansi | tee -a "$GITHUB_STEP_SUMMARY"

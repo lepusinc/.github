@@ -33,6 +33,7 @@ runs:
       shell: bash
       run: |
         {
+          echo "### Installed Versions"
           echo "- PHP: $(php -r 'echo PHP_VERSION;')"
           echo "- Composer: $(composer --version --no-ansi)"
         } | tee -a "$GITHUB_STEP_SUMMARY"
