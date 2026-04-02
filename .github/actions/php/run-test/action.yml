@@ -6,6 +6,10 @@ inputs:
     description: Working directory to run Pest commands in
     required: false
     default: '.'
+  annotations:
+    description: Enable PR diff annotations via dorny/test-reporter (requires checks:write in calling workflow)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -15,16 +19,25 @@ runs:
       run: echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
     - name: Run tests
+      id: run-tests
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        JUNIT_PATH=/tmp/pest-report.xml
+
         set -x
-        vendor/bin/pest --parallel --no-progress | tee /tmp/pest-output.txt && EXIT_CODE=0 || EXIT_CODE=$?
+        vendor/bin/pest --parallel --no-progress --log-junit="$JUNIT_PATH" && EXIT_CODE=0 || EXIT_CODE=$?
         set +x
 
-        {
-          echo "### Test Results"
-          grep -E "Tests:" /tmp/pest-output.txt || true
-        } >> "$GITHUB_STEP_SUMMARY"
-
+        echo "junit-path=$JUNIT_PATH" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
         exit "$EXIT_CODE"
+
+    - name: Report test results
+      uses: dorny/test-reporter@v3
+      if: ${{ !cancelled() }}
+      with:
+        name: Pest Tests
+        path: ${{ steps.run-tests.outputs.junit-path }}
+        reporter: phpunit-junit
+        fail-on-error: false
+        use-actions-summary: ${{ inputs.annotations != 'true' }}
