@@ -28,6 +28,15 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: composer config platform.php ${{ steps.setup_php.outputs.php-version }}
 
+    - name: Output installed versions
+      if: ${{ !env.INSTALLED_PHP_VERSION }}
+      shell: bash
+      run: |
+        {
+          echo "- PHP: $(php -r 'echo PHP_VERSION;')"
+          echo "- Composer: $(composer --version --no-ansi)"
+        } | tee -a "$GITHUB_STEP_SUMMARY"
+
     - name: Mark PHP setup done
       if: ${{ !env.INSTALLED_PHP_VERSION }}
       shell: bash
