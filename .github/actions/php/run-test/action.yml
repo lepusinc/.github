@@ -1,25 +1,15 @@
 name: Run Tests
-description: Setup PHP test environment and run Pest tests
+description: Run Pest tests
 
 inputs:
-  php:
-    description: PHP version to use
-    required: false
-    default: '8.4'
   working-directory:
-    description: Working directory to run Composer and Pest commands in
+    description: Working directory to run Pest commands in
     required: false
     default: '.'
 
 runs:
   using: composite
   steps:
-    - name: Setup test environment
-      uses: lepusinc/.github/.github/actions/php/setup-test@v1
-      with:
-        php: ${{ inputs.php }}
-        working-directory: ${{ inputs.working-directory }}
-
     - name: Run tests
       shell: bash
       working-directory: ${{ inputs.working-directory }}
