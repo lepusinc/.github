@@ -1,5 +1,5 @@
 name: Run Laravel Tests
-description: Install Laravel dependencies and run Pest tests
+description: Setup Laravel test environment and run Pest tests
 
 inputs:
   php:
@@ -11,26 +11,21 @@ inputs:
     required: false
     default: '12.*'
   working-directory:
-    description: Working directory to run Composer commands in
+    description: Working directory to run Composer and Pest commands in
     required: false
     default: '.'
 
 runs:
   using: composite
   steps:
-    - name: Setup Composer
-      uses: lepusinc/.github/.github/actions/php/setup-composer@v1
+    - name: Setup test environment
+      uses: lepusinc/.github/.github/actions/laravel/setup-test@v1
       with:
         php: ${{ inputs.php }}
+        laravel: ${{ inputs.laravel }}
         working-directory: ${{ inputs.working-directory }}
-
-    - name: Install Laravel dependencies
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: composer require --dev "laravel/framework:${{ inputs.laravel }}" --no-interaction --no-update
 
     - name: Run tests
-      uses: lepusinc/.github/.github/actions/php/run-test@v1
-      with:
-        php: ${{ inputs.php }}
-        working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: vendor/bin/pest --parallel --no-progress
