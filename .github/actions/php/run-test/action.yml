@@ -14,5 +14,13 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        echo "### Test Results" | tee -a "$GITHUB_STEP_SUMMARY"
-        vendor/bin/pest --parallel --no-progress --colors=never | tee -a "$GITHUB_STEP_SUMMARY"
+        set -x
+        vendor/bin/pest --parallel --no-progress | tee /tmp/pest-output.txt && EXIT_CODE=0 || EXIT_CODE=$?
+        set +x
+
+        {
+          echo "### Test Results"
+          grep -E "Tests:" /tmp/pest-output.txt || true
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        exit "$EXIT_CODE"

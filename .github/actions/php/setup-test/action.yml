@@ -24,6 +24,11 @@ runs:
       shell: bash
       run: echo "### Install Composer Packages" | tee -a "$GITHUB_STEP_SUMMARY"
 
+    - name: Require pest-plugin-github-actions
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: composer require --dev pestphp/pest-plugin-github-actions --no-interaction --no-update
+
     - name: Generate composer.lock
       id: generate-lock
       shell: bash
@@ -36,6 +41,7 @@ runs:
     - name: Get Composer cache directory
       id: composer-cache-dir
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: echo "path=$(composer config cache-dir)" | tee -a "$GITHUB_STEP_SUMMARY" "$GITHUB_OUTPUT"
 
     - name: Cache Composer files
@@ -55,4 +61,4 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        composer show --no-ansi | tee -a "$GITHUB_STEP_SUMMARY"
+        composer show --direct --no-ansi | tee -a "$GITHUB_STEP_SUMMARY"
