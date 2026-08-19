@@ -8,6 +8,16 @@ on:
         description: "マージ先ブランチ名"
         type: string
         required: true
+    secrets:
+      pr_token:
+        description: >-
+          同期ブランチの push と PR 作成に使用するトークン。
+          未指定時は secrets.GITHUB_TOKEN にフォールバックする。
+          GITHUB_TOKEN で作成した PR は "github-actions[bot]" が作者になり、
+          リポジトリ/Organization の承認ポリシーにより pull_request トリガーの
+          ワークフロー実行に手動承認が必要になる場合がある。
+          書き込み権限を持つコラボレーターアカウントの PAT を渡すことでこれを回避できる。
+        required: false
   workflow_dispatch:
     inputs:
       target_branch:
@@ -123,7 +133,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.pr_token || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Download workflow templates
@@ -200,7 +210,7 @@ jobs:
         if: success()
         env:
           BRANCH: ${{ steps.create_sync_branch.outputs.branch }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.pr_token || secrets.GITHUB_TOKEN }}
         run: |
           echo "### Check Existing PR" | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -226,7 +236,7 @@ jobs:
         id: create_pr
         if: steps.check_existing_pr.outputs.pull-request-url == ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.pr_token || secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           SOURCE_BRANCH: ${{ github.ref_name }}
@@ -278,7 +288,7 @@ jobs:
         id: add_labels
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.pr_token || secrets.GITHUB_TOKEN }}
           PR_URL: ${{ steps.check_existing_pr.outputs.pull-request-url || steps.create_pr.outputs.pull-request-url }}
         run: |
           echo "### Add Labels to PR" | tee -a "$GITHUB_STEP_SUMMARY"

@@ -34,6 +34,25 @@ The calling job must have the following permissions:
 | `contents`      | `write` |
 | `pull-requests` | `write` |
 
+### Secrets
+
+| Name       | Required | Description                                                                                                                                                                                                                                                                                                                                              |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pr_token` | No       | Token used to push the sync branch and create the PR. Falls back to `secrets.GITHUB_TOKEN` when not provided. A PR created with `GITHUB_TOKEN` is authored by `github-actions[bot]`, and depending on the repository/organization's approval policy, `pull_request`-triggered workflow runs on it may require manual approval every time. Passing a personal access token (or GitHub App token) that belongs to a collaborator account with write access avoids this. |
+
+> [!TIP]
+> If your PRs from this workflow keep showing "Workflows will not run until approved by a user with write permissions", pass a `pr_token` from a real collaborator account instead of relying on the default `GITHUB_TOKEN`:
+>
+> ```yaml
+> uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
+> with:
+>   target_branch: develop
+> secrets:
+>   pr_token: ${{ secrets.SYNC_PR_TOKEN }}
+> ```
+>
+> `SYNC_PR_TOKEN` here is a repository or organization secret holding a fine-grained PAT (scoped to `Contents: Read and write` and `Pull requests: Read and write`) issued from a bot/service account that has write access to the target repository.
+
 ### Sync Branch Naming Convention
 
 The sync branch is created with the following name:
@@ -141,3 +160,4 @@ The workflow automatically applies the following labels to the created (or pre-e
 | Workflow fails with "Resource not accessible by integration" | Missing `contents: write` or `pull-requests: write` permission.       | Add the `permissions` block to the calling job (see example above).                     |
 | No PR is created but no error is shown                       | A PR for the sync branch already exists.                              | Check for an open PR with the head branch `sync/<source>-to-<target>`.                  |
 | Force-push to sync branch fails                              | Another actor pushed to the sync branch after the branch was fetched. | Re-run the workflow. If the issue persists, delete the sync branch manually and re-run. |
+| CI on the sync PR always shows "workflow awaiting approval"  | The PR was created with the default `GITHUB_TOKEN`, so it is authored by `github-actions[bot]`, which some approval policies always gate. | Pass `secrets.pr_token` from a collaborator account's PAT (see the Secrets section above). |

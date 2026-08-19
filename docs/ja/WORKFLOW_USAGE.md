@@ -34,6 +34,25 @@
 | `contents`      | `write` |
 | `pull-requests` | `write` |
 
+### Secrets
+
+| 項目       | 必須 | 説明                                                                                                                                                                                                                                                                       |
+| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pr_token` | 任意 | 同期ブランチの push と PR 作成に使用するトークン。未指定時は `secrets.GITHUB_TOKEN` にフォールバックする。`GITHUB_TOKEN` で作成した PR は作者が `github-actions[bot]` になり、リポジトリ/Organization の承認ポリシーによっては `pull_request` トリガーのワークフロー実行に毎回手動承認が必要になる。書き込み権限を持つコラボレーターアカウントの個人アクセストークン（または GitHub App トークン）を渡すことでこれを回避できる。 |
+
+> [!TIP]
+> このワークフローが作成した PR で常に "Workflows will not run until approved by a user with write permissions" と表示される場合は、デフォルトの `GITHUB_TOKEN` に依存せず、書き込み権限を持つ実在のコラボレーターアカウントの PAT を `pr_token` として渡してください。
+>
+> ```yaml
+> uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
+> with:
+>   target_branch: develop
+> secrets:
+>   pr_token: ${{ secrets.SYNC_PR_TOKEN }}
+> ```
+>
+> ここでの `SYNC_PR_TOKEN` は、対象リポジトリへの書き込み権限を持つ bot/サービスアカウントから発行した fine-grained PAT（`Contents: Read and write`、`Pull requests: Read and write` スコープ）を保存したリポジトリまたは Organization の Secret です。
+
 ### 同期ブランチの命名規則
 
 同期ブランチは以下の命名規則で作成されます。
@@ -141,3 +160,4 @@ uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@<コミット
 | "Resource not accessible by integration" で失敗する | `contents: write` または `pull-requests: write` が不足している。 | 呼び出し元ジョブに `permissions` ブロックを追加する（上記例を参照）。                |
 | エラーなし・PR も作成されない                       | 同期ブランチに対する PR が既に存在する。                         | ヘッドブランチ `sync/<source>-to-<target>` のオープン PR を確認する。                |
 | 同期ブランチへの force-push が失敗する              | ブランチ取得後に別の主体がプッシュした競合。                     | ワークフローを再実行する。解消しない場合は同期ブランチを手動削除してから再実行する。 |
+| 同期 PR の CI が毎回 "workflow awaiting approval" になる | PR がデフォルトの `GITHUB_TOKEN` で作成され、作者が `github-actions[bot]` になっているため、承認ポリシーの対象になっている。 | コラボレーターアカウントの PAT を `secrets.pr_token` として渡す（上記 Secrets の節を参照）。 |
