@@ -21,9 +21,10 @@ When called, the workflow will:
 
 ### Inputs
 
-| Name            | Type     | Required | Description                           |
-| --------------- | -------- | -------- | ------------------------------------- |
-| `target_branch` | `string` | ✅       | The branch to merge the sync PR into. |
+| Name            | Type     | Required | Description                                                                                                                    |
+| --------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `target_branch` | `string` | ✅       | The branch to merge the sync PR into.                                                                                          |
+| `app_id`        | `string` | No       | App ID of a GitHub App used to mint an installation token for the sync branch push and PR creation. Used with `secrets.app_private_key`. Takes priority over `pr_token` when set. |
 
 ### Required Permissions
 
@@ -36,22 +37,31 @@ The calling job must have the following permissions:
 
 ### Secrets
 
-| Name       | Required | Description                                                                                                                                                                                                                                                                                                                                              |
-| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pr_token` | No       | Token used to push the sync branch and create the PR. Falls back to `secrets.GITHUB_TOKEN` when not provided. A PR created with `GITHUB_TOKEN` is authored by `github-actions[bot]`, and depending on the repository/organization's approval policy, `pull_request`-triggered workflow runs on it may require manual approval every time. Passing a personal access token (or GitHub App token) that belongs to a collaborator account with write access avoids this. |
+| Name              | Required | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app_private_key` | No       | Private key of the GitHub App identified by `inputs.app_id`. Used together with `app_id` to generate a short-lived installation token via `actions/create-github-app-token`.                                                                                                                                                                          |
+| `pr_token`        | No       | Static token used to push the sync branch and create the PR, used only when `app_id`/`app_private_key` are not provided. Falls back to `secrets.GITHUB_TOKEN` when none of the above are set. A PR created with `GITHUB_TOKEN` is authored by `github-actions[bot]`, and depending on the repository/organization's approval policy, `pull_request`-triggered workflow runs on it may require manual approval every time. |
 
 > [!TIP]
-> If your PRs from this workflow keep showing "Workflows will not run until approved by a user with write permissions", pass a `pr_token` from a real collaborator account instead of relying on the default `GITHUB_TOKEN`:
+> If your PRs from this workflow keep showing "Workflows will not run until approved by a user with write permissions", the default `GITHUB_TOKEN` is the cause — its PRs are authored by `github-actions[bot]`. The recommended fix, especially for org-wide use, is a **GitHub App** (rather than a PAT tied to a shared human/bot account):
 >
 > ```yaml
 > uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
 > with:
 >   target_branch: develop
+>   app_id: ${{ vars.SYNC_PR_APP_ID }}
+> secrets:
+>   app_private_key: ${{ secrets.SYNC_PR_APP_PRIVATE_KEY }}
+> ```
+>
+> Create a GitHub App at the organization level with `Contents: Read and write` and `Pull requests: Read and write` repository permissions, install it on the repositories that need it, and store its App ID as an org/repo **variable** (`SYNC_PR_APP_ID`, not sensitive) and its private key as an org/repo **secret** (`SYNC_PR_APP_PRIVATE_KEY`). Because both can be set at the organization level, every repository that calls this workflow can share the same App without per-repo credential management.
+>
+> If a GitHub App isn't available yet, `pr_token` still works as a fallback — pass a PAT from a collaborator account with write access:
+>
+> ```yaml
 > secrets:
 >   pr_token: ${{ secrets.SYNC_PR_TOKEN }}
 > ```
->
-> `SYNC_PR_TOKEN` here is a repository or organization secret holding a fine-grained PAT (scoped to `Contents: Read and write` and `Pull requests: Read and write`) issued from a bot/service account that has write access to the target repository.
 
 ### Sync Branch Naming Convention
 

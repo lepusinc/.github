@@ -21,9 +21,10 @@
 
 ### 入力パラメータ
 
-| 項目            | 型       | 必須 | 説明                           |
-| --------------- | -------- | ---- | ------------------------------ |
-| `target_branch` | `string` | ✅   | 同期 PR のマージ先ブランチ名。 |
+| 項目            | 型       | 必須 | 説明                                                                                                                               |
+| --------------- | -------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `target_branch` | `string` | ✅   | 同期 PR のマージ先ブランチ名。                                                                                                     |
+| `app_id`        | `string` | 任意 | 同期ブランチの push と PR 作成用トークンを発行する GitHub App の App ID。`secrets.app_private_key` と併用する。指定時は `pr_token` より優先される。 |
 
 ### 必要なパーミッション
 
@@ -36,22 +37,31 @@
 
 ### Secrets
 
-| 項目       | 必須 | 説明                                                                                                                                                                                                                                                                       |
-| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pr_token` | 任意 | 同期ブランチの push と PR 作成に使用するトークン。未指定時は `secrets.GITHUB_TOKEN` にフォールバックする。`GITHUB_TOKEN` で作成した PR は作者が `github-actions[bot]` になり、リポジトリ/Organization の承認ポリシーによっては `pull_request` トリガーのワークフロー実行に毎回手動承認が必要になる。書き込み権限を持つコラボレーターアカウントの個人アクセストークン（または GitHub App トークン）を渡すことでこれを回避できる。 |
+| 項目              | 必須 | 説明                                                                                                                                                                                                                                                                       |
+| ----------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app_private_key` | 任意 | `inputs.app_id` で指定した GitHub App の private key。`app_id` と併用し、`actions/create-github-app-token` で短命のインストールトークンを生成する。                                                                                                                     |
+| `pr_token`        | 任意 | 同期ブランチの push と PR 作成に使用する静的トークン。`app_id`/`app_private_key` が指定されていない場合のみ使用し、いずれも未指定なら `secrets.GITHUB_TOKEN` にフォールバックする。`GITHUB_TOKEN` で作成した PR は作者が `github-actions[bot]` になり、リポジトリ/Organization の承認ポリシーによっては `pull_request` トリガーのワークフロー実行に毎回手動承認が必要になる。 |
 
 > [!TIP]
-> このワークフローが作成した PR で常に "Workflows will not run until approved by a user with write permissions" と表示される場合は、デフォルトの `GITHUB_TOKEN` に依存せず、書き込み権限を持つ実在のコラボレーターアカウントの PAT を `pr_token` として渡してください。
+> このワークフローが作成した PR で常に "Workflows will not run until approved by a user with write permissions" と表示される場合、原因はデフォルトの `GITHUB_TOKEN`（作者が `github-actions[bot]` になる）です。特に組織全体で使う場合は、共有の人間/bot アカウントに紐づく PAT よりも **GitHub App** を使うことを推奨します。
 >
 > ```yaml
 > uses: lepusinc/.github/.github/workflows/create-sync-branch-pr.yml@main
 > with:
 >   target_branch: develop
+>   app_id: ${{ vars.SYNC_PR_APP_ID }}
+> secrets:
+>   app_private_key: ${{ secrets.SYNC_PR_APP_PRIVATE_KEY }}
+> ```
+>
+> Organization レベルで GitHub App を作成し、リポジトリ権限に `Contents: Read and write` と `Pull requests: Read and write` を付与して対象リポジトリにインストールしてください。App ID は機密情報ではないため Organization/リポジトリの **Variable**（`SYNC_PR_APP_ID`）に、private key は **Secret**（`SYNC_PR_APP_PRIVATE_KEY`）に保存します。どちらも Organization レベルで設定できるため、このワークフローを呼び出す全リポジトリが同じ App を共有でき、リポジトリごとの認証情報管理が不要になります。
+>
+> GitHub App がまだ用意できない場合は、`pr_token` によるフォールバックも利用できます（書き込み権限を持つコラボレーターアカウントの PAT を渡す）。
+>
+> ```yaml
 > secrets:
 >   pr_token: ${{ secrets.SYNC_PR_TOKEN }}
 > ```
->
-> ここでの `SYNC_PR_TOKEN` は、対象リポジトリへの書き込み権限を持つ bot/サービスアカウントから発行した fine-grained PAT（`Contents: Read and write`、`Pull requests: Read and write` スコープ）を保存したリポジトリまたは Organization の Secret です。
 
 ### 同期ブランチの命名規則
 
